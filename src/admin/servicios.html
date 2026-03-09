@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>💈 Servicios - Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+
+  <nav class="bg-gray-800 border-b border-gray-700 px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <span class="text-2xl">💈</span>
+      <span class="font-bold text-lg text-amber-400">Barbería Bot</span>
+    </div>
+    <div class="flex items-center gap-4">
+      <a href="/admin/dashboard.html" class="text-gray-300 hover:text-white">Inicio</a>
+      <a href="/admin/barberos.html" class="text-gray-300 hover:text-white">Barberos</a>
+      <a href="/admin/servicios.html" class="text-amber-400 font-medium">Servicios</a>
+      <a href="/admin/citas.html" class="text-gray-300 hover:text-white">Citas</a>
+      <a href="/admin/config.html" class="text-gray-300 hover:text-white">Configuración</a>
+      <button onclick="logout()" class="text-red-400 hover:text-red-300 text-sm">Salir</button>
+    </div>
+  </nav>
+
+  <main class="max-w-4xl mx-auto px-6 py-8">
+    <div class="flex items-center justify-between mb-6">
+      <h1 class="text-2xl font-bold">Servicios</h1>
+      <button onclick="abrirModal()" class="bg-amber-500 hover:bg-amber-600 text-black font-bold py-2 px-5 rounded-lg">+ Nuevo Servicio</button>
+    </div>
+
+    <div class="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+      <table class="w-full">
+        <thead class="bg-gray-700">
+          <tr>
+            <th class="text-left px-5 py-3 text-gray-300 font-medium">Nombre</th>
+            <th class="text-left px-5 py-3 text-gray-300 font-medium">Precio</th>
+            <th class="text-left px-5 py-3 text-gray-300 font-medium">Duración</th>
+            <th class="text-left px-5 py-3 text-gray-300 font-medium">Estado</th>
+            <th class="px-5 py-3"></th>
+          </tr>
+        </thead>
+        <tbody id="tablaServicios">
+          <tr><td colspan="5" class="text-center py-8 text-gray-500">Cargando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <!-- Modal -->
+  <div id="modal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+    <div class="bg-gray-800 rounded-2xl w-full max-w-md p-6">
+      <div class="flex items-center justify-between mb-5">
+        <h2 class="text-xl font-bold" id="modalTitulo">Nuevo Servicio</h2>
+        <button onclick="cerrarModal()" class="text-gray-400 hover:text-white text-2xl">✕</button>
+      </div>
+      <form id="servicioForm" class="space-y-4">
+        <input type="hidden" id="servicioId">
+        <div>
+          <label class="block text-gray-300 text-sm mb-1">Nombre *</label>
+          <input id="sNombre" type="text" required class="w-full bg-gray-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500">
+        </div>
+        <div>
+          <label class="block text-gray-300 text-sm mb-1">Descripción</label>
+          <input id="sDescripcion" type="text" placeholder="Descripción opcional" class="w-full bg-gray-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500">
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-gray-300 text-sm mb-1">Precio (pesos) *</label>
+            <input id="sPrecio" type="number" min="0" required placeholder="20000" class="w-full bg-gray-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500">
+          </div>
+          <div>
+            <label class="block text-gray-300 text-sm mb-1">Duración (minutos) *</label>
+            <input id="sDuracion" type="number" min="1" max="240" required placeholder="30" class="w-full bg-gray-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500">
+          </div>
+        </div>
+        <div id="formError" class="hidden text-red-400 text-sm bg-red-900/30 rounded-lg p-3"></div>
+        <div class="flex gap-3 pt-2">
+          <button type="submit" class="flex-1 bg-amber-500 hover:bg-amber-600 text-black font-bold py-2 px-4 rounded-lg">Guardar</button>
+          <button type="button" onclick="cerrarModal()" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const token = localStorage.getItem('adminToken');
+    if (!token) window.location.href = '/admin/index.html';
+    const api = (url, opts = {}) => fetch(url, { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, ...opts });
+    function logout() { localStorage.removeItem('adminToken'); window.location.href = '/admin/index.html'; }
+
+    async function cargarServicios() {
+      const res = await api('/api/admin/servicios');
+      if (res.status === 401) { logout(); return; }
+      const servicios = await res.json();
+      const tbody = document.getElementById('tablaServicios');
+      if (servicios.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-gray-500">No hay servicios registrados</td></tr>';
+        return;
+      }
+      tbody.innerHTML = servicios.map(s => `
+        <tr class="border-t border-gray-700 hover:bg-gray-700/30">
+          <td class="px-5 py-3">
+            <div class="font-medium">${s.nombre}</div>
+            ${s.descripcion ? `<div class="text-sm text-gray-400">${s.descripcion}</div>` : ''}
+          </td>
+          <td class="px-5 py-3 text-amber-400">${formatPrecio(s.precio)}</td>
+          <td class="px-5 py-3 text-gray-300">${s.duracionMinutos} min</td>
+          <td class="px-5 py-3"><span class="px-2 py-0.5 rounded-full text-xs ${s.activo ? 'bg-green-900 text-green-300' : 'bg-red-900 text-red-300'}">${s.activo ? 'Activo' : 'Inactivo'}</span></td>
+          <td class="px-5 py-3">
+            <div class="flex gap-2 justify-end">
+              <button onclick='editarServicio(${JSON.stringify(s)})' class="text-sm bg-blue-700 hover:bg-blue-600 px-3 py-1 rounded-lg">Editar</button>
+              <button onclick="toggleServicio('${s.id}', ${s.activo})" class="text-sm ${s.activo ? 'bg-red-800 hover:bg-red-700' : 'bg-green-800 hover:bg-green-700'} px-3 py-1 rounded-lg">
+                ${s.activo ? 'Desactivar' : 'Activar'}
+              </button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function formatPrecio(p) { return `$${p.toLocaleString('es-CO')}`; }
+
+    function abrirModal(s = null) {
+      document.getElementById('modal').classList.remove('hidden');
+      document.getElementById('modalTitulo').textContent = s ? 'Editar Servicio' : 'Nuevo Servicio';
+      document.getElementById('servicioId').value = s?.id || '';
+      document.getElementById('sNombre').value = s?.nombre || '';
+      document.getElementById('sDescripcion').value = s?.descripcion || '';
+      document.getElementById('sPrecio').value = s?.precio || '';
+      document.getElementById('sDuracion').value = s?.duracionMinutos || '';
+      document.getElementById('formError').classList.add('hidden');
+    }
+
+    function cerrarModal() { document.getElementById('modal').classList.add('hidden'); }
+    function editarServicio(s) { abrirModal(s); }
+
+    async function toggleServicio(id, activo) {
+      if (!confirm(`¿${activo ? 'Desactivar' : 'Activar'} este servicio?`)) return;
+      await api(`/api/admin/servicios/${id}`, { method: 'PUT', body: JSON.stringify({ activo: !activo }) });
+      cargarServicios();
+    }
+
+    document.getElementById('servicioForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('servicioId').value;
+      const body = {
+        nombre: document.getElementById('sNombre').value,
+        descripcion: document.getElementById('sDescripcion').value || null,
+        precio: parseFloat(document.getElementById('sPrecio').value),
+        duracionMinutos: parseInt(document.getElementById('sDuracion').value),
+      };
+      const url = id ? `/api/admin/servicios/${id}` : '/api/admin/servicios';
+      const method = id ? 'PUT' : 'POST';
+      const res = await api(url, { method, body: JSON.stringify(body) });
+      const data = await res.json();
+      if (res.ok) { cerrarModal(); cargarServicios(); }
+      else { const err = document.getElementById('formError'); err.textContent = data.error; err.classList.remove('hidden'); }
+    });
+
+    cargarServicios();
+  </script>
+</body>
+</html>

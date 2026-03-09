@@ -1,0 +1,123 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== CLIENTES ====================
+model Cliente {
+  id            String   @id @default(uuid())
+  nombre        String
+  telefono      String   @unique
+  email         String?
+  fechaRegistro DateTime @default(now())
+  notas         String?
+  activo        Boolean  @default(true)
+
+  citas          Cita[]
+  conversaciones Conversacion[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([telefono])
+  @@index([nombre])
+}
+
+// ==================== EMPLEADOS ====================
+model Empleado {
+  id             String  @id @default(uuid())
+  nombre         String
+  telefono       String
+  fotoUrl        String?
+  especialidades String
+  activo         Boolean @default(true)
+  fechaIngreso   DateTime @default(now())
+
+  // Integración con Google Calendar
+  googleCalendarId     String?
+  googleAccessToken    String?  @db.Text
+  googleRefreshToken   String?  @db.Text
+  googleTokenExpiry    DateTime?
+  calendarioSincronizado Boolean @default(false)
+
+  horarioLunes     String?
+  horarioMartes    String?
+  horarioMiercoles String?
+  horarioJueves    String?
+  horarioViernes   String?
+  horarioSabado    String?
+  horarioDomingo   String?
+
+  citas Cita[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([activo])
+}
+
+// ==================== SERVICIOS ====================
+model Servicio {
+  id              String  @id @default(uuid())
+  nombre          String
+  descripcion     String?
+  precio          Float
+  duracionMinutos Int
+  activo          Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([activo])
+}
+
+// ==================== CITAS ====================
+model Cita {
+  id              String   @id @default(uuid())
+  radicado        String   @unique
+  clienteId       String
+  empleadoId      String
+  servicioNombre  String
+  fechaHora       DateTime
+  duracionMinutos Int
+  estado          String   @default("PENDIENTE")
+  origen          String   @default("WHATSAPP")
+  notas           String?
+  motivoCancelacion String?
+
+  googleEventId String?
+
+  cliente  Cliente  @relation(fields: [clienteId], references: [id])
+  empleado Empleado @relation(fields: [empleadoId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([fechaHora])
+  @@index([radicado])
+  @@index([empleadoId, fechaHora])
+  @@index([estado])
+}
+
+// ==================== CONVERSACIONES (CONTEXTO BOT) ====================
+model Conversacion {
+  id           String   @id @default(uuid())
+  clienteId    String
+  telefono     String
+  estado       String   @default("INICIAL")
+  contexto     String
+  lastActivity DateTime @default(now())
+  activa       Boolean  @default(true)
+
+  cliente Cliente @relation(fields: [clienteId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([telefono, activa])
+  @@index([lastActivity])
+}

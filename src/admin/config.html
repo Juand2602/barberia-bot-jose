@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>💈 Configuración - Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+
+  <nav class="bg-gray-800 border-b border-gray-700 px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <span class="text-2xl">💈</span>
+      <span class="font-bold text-lg text-amber-400">Barbería Bot</span>
+    </div>
+    <div class="flex items-center gap-4">
+      <a href="/admin/dashboard.html" class="text-gray-300 hover:text-white">Inicio</a>
+      <a href="/admin/barberos.html" class="text-gray-300 hover:text-white">Barberos</a>
+      <a href="/admin/servicios.html" class="text-gray-300 hover:text-white">Servicios</a>
+      <a href="/admin/citas.html" class="text-gray-300 hover:text-white">Citas</a>
+      <a href="/admin/config.html" class="text-amber-400 font-medium">Configuración</a>
+      <button onclick="logout()" class="text-red-400 hover:text-red-300 text-sm">Salir</button>
+    </div>
+  </nav>
+
+  <main class="max-w-3xl mx-auto px-6 py-8">
+    <h1 class="text-2xl font-bold mb-6">Configuración</h1>
+
+    <!-- Info leída de .env -->
+    <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-6">
+      <h2 class="text-lg font-semibold mb-4">Información Actual del Bot</h2>
+      <div class="space-y-3" id="configInfo">
+        <div class="text-gray-500 text-sm">Cargando...</div>
+      </div>
+    </div>
+
+    <!-- Cómo cambiar la config -->
+    <div class="bg-gray-800 rounded-xl border border-amber-700/50 p-6">
+      <h2 class="text-lg font-semibold mb-3 text-amber-400">⚙️ ¿Cómo cambiar la configuración?</h2>
+      <p class="text-gray-300 text-sm mb-4">
+        La configuración del bot se gestiona a través de las variables de entorno en Railway. Para actualizarla:
+      </p>
+      <ol class="list-decimal list-inside space-y-2 text-gray-300 text-sm">
+        <li>Ve a tu proyecto en <a href="https://railway.app" target="_blank" class="text-amber-400 underline">railway.app</a></li>
+        <li>Selecciona tu servicio</li>
+        <li>Haz clic en <strong>Variables</strong></li>
+        <li>Edita los valores correspondientes</li>
+        <li>Railway reiniciará el servidor automáticamente</li>
+      </ol>
+
+      <div class="mt-5 bg-gray-700 rounded-lg p-4">
+        <div class="text-sm font-medium text-gray-300 mb-3">Variables disponibles:</div>
+        <div class="space-y-1.5 text-xs font-mono">
+          <div class="flex gap-3"><span class="text-amber-400 w-48">BARBERIA_NOMBRE</span><span class="text-gray-400">Nombre de la barbería en el bot</span></div>
+          <div class="flex gap-3"><span class="text-amber-400 w-48">BARBERIA_DIRECCION</span><span class="text-gray-400">Dirección que ve el cliente</span></div>
+          <div class="flex gap-3"><span class="text-amber-400 w-48">BARBERIA_HORA_APERTURA</span><span class="text-gray-400">Hora de apertura (ej: 09:00)</span></div>
+          <div class="flex gap-3"><span class="text-amber-400 w-48">BARBERIA_HORA_CIERRE</span><span class="text-gray-400">Hora de cierre (ej: 20:00)</span></div>
+          <div class="flex gap-3"><span class="text-amber-400 w-48">SERVICIO_PREDETERMINADO</span><span class="text-gray-400">Servicio que se asigna en citas del bot</span></div>
+          <div class="flex gap-3"><span class="text-amber-400 w-48">BARBEROS_MOSAICO_URL</span><span class="text-gray-400">URL de imagen del equipo (opcional)</span></div>
+          <div class="flex gap-3"><span class="text-amber-400 w-48">JEFE_BARBERO_TELEFONO</span><span class="text-gray-400">Teléfono para notificaciones (ej: 573001234567)</span></div>
+          <div class="flex gap-3"><span class="text-amber-400 w-48">ADMINISTRADORA_TELEFONO</span><span class="text-gray-400">Teléfono admin para notificaciones</span></div>
+          <div class="flex gap-3"><span class="text-amber-400 w-48">ADMIN_USERNAME</span><span class="text-gray-400">Usuario para este panel</span></div>
+          <div class="flex gap-3"><span class="text-amber-400 w-48">ADMIN_PASSWORD</span><span class="text-gray-400">Contraseña para este panel</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Estado del bot -->
+    <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mt-6">
+      <h2 class="text-lg font-semibold mb-4">Estado del Servidor</h2>
+      <div id="statusInfo" class="text-gray-400 text-sm">Verificando...</div>
+      <button onclick="verificarEstado()" class="mt-4 bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-lg text-sm">Verificar estado</button>
+    </div>
+  </main>
+
+  <script>
+    const token = localStorage.getItem('adminToken');
+    if (!token) window.location.href = '/admin/index.html';
+    const api = (url, opts = {}) => fetch(url, { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, ...opts });
+    function logout() { localStorage.removeItem('adminToken'); window.location.href = '/admin/index.html'; }
+
+    async function cargarConfig() {
+      const res = await api('/api/admin/config');
+      if (res.status === 401) { logout(); return; }
+      const config = await res.json();
+      const container = document.getElementById('configInfo');
+      container.innerHTML = `
+        <div class="grid grid-cols-2 gap-3">
+          ${renderItem('Nombre del negocio', config.nombre)}
+          ${renderItem('Dirección', config.direccion)}
+          ${renderItem('Hora apertura', config.horaApertura)}
+          ${renderItem('Hora cierre', config.horaCierre)}
+          ${renderItem('Servicio predeterminado', config.servicioPredeterminado)}
+          ${renderItem('Mosaico barberos', config.mosaicoUrl ? '✅ Configurado' : '❌ No configurado')}
+          ${renderItem('Tel. jefe barbero', config.jefeBarberTelefono || '❌ No configurado')}
+          ${renderItem('Tel. administradora', config.administradoraTelefono || '❌ No configurado')}
+        </div>
+      `;
+    }
+
+    function renderItem(label, value) {
+      return `
+        <div class="bg-gray-700/50 rounded-lg p-3">
+          <div class="text-xs text-gray-400 mb-1">${label}</div>
+          <div class="font-medium text-sm">${value || '—'}</div>
+        </div>
+      `;
+    }
+
+    async function verificarEstado() {
+      const div = document.getElementById('statusInfo');
+      try {
+        const res = await fetch('/health');
+        const data = await res.json();
+        div.innerHTML = `<span class="text-green-400">✅ Servidor activo</span> · ${data.timestamp}`;
+      } catch {
+        div.innerHTML = '<span class="text-red-400">❌ Error al conectar con el servidor</span>';
+      }
+    }
+
+    cargarConfig();
+    verificarEstado();
+  </script>
+</body>
+</html>

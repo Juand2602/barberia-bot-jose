@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>💈 Dashboard - Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+
+  <!-- Navbar -->
+  <nav class="bg-gray-800 border-b border-gray-700 px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <span class="text-2xl">💈</span>
+      <span class="font-bold text-lg text-amber-400" id="barberiaName">Barbería Bot</span>
+    </div>
+    <div class="flex items-center gap-4">
+      <a href="/admin/dashboard.html" class="text-amber-400 font-medium">Inicio</a>
+      <a href="/admin/barberos.html" class="text-gray-300 hover:text-white">Barberos</a>
+      <a href="/admin/servicios.html" class="text-gray-300 hover:text-white">Servicios</a>
+      <a href="/admin/citas.html" class="text-gray-300 hover:text-white">Citas</a>
+      <a href="/admin/config.html" class="text-gray-300 hover:text-white">Configuración</a>
+      <button onclick="logout()" class="text-red-400 hover:text-red-300 text-sm">Salir</button>
+    </div>
+  </nav>
+
+  <main class="max-w-6xl mx-auto px-6 py-8">
+    <h1 class="text-2xl font-bold mb-6">Panel Principal</h1>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div class="bg-gray-800 rounded-xl p-5 border border-gray-700">
+        <div class="text-3xl font-bold text-amber-400" id="citasHoy">--</div>
+        <div class="text-gray-400 text-sm mt-1">Citas hoy</div>
+      </div>
+      <div class="bg-gray-800 rounded-xl p-5 border border-gray-700">
+        <div class="text-3xl font-bold text-green-400" id="citasProximas">--</div>
+        <div class="text-gray-400 text-sm mt-1">Citas pendientes</div>
+      </div>
+      <div class="bg-gray-800 rounded-xl p-5 border border-gray-700">
+        <div class="text-3xl font-bold text-blue-400" id="totalBarberos">--</div>
+        <div class="text-gray-400 text-sm mt-1">Barberos activos</div>
+      </div>
+      <div class="bg-gray-800 rounded-xl p-5 border border-gray-700">
+        <div class="text-3xl font-bold text-purple-400" id="totalServicios">--</div>
+        <div class="text-gray-400 text-sm mt-1">Servicios activos</div>
+      </div>
+    </div>
+
+    <!-- Próximas citas -->
+    <div class="bg-gray-800 rounded-xl border border-gray-700 p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold">Próximas Citas</h2>
+        <a href="/admin/citas.html" class="text-amber-400 text-sm hover:underline">Ver todas →</a>
+      </div>
+      <div id="proximasCitas" class="space-y-3">
+        <div class="text-gray-500 text-sm">Cargando...</div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const token = localStorage.getItem('adminToken');
+    if (!token) window.location.href = '/admin/index.html';
+
+    const api = (url, opts = {}) => fetch(url, { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, ...opts });
+
+    function logout() { localStorage.removeItem('adminToken'); window.location.href = '/admin/index.html'; }
+
+    async function cargarDashboard() {
+      try {
+        const [dashRes, citasRes, configRes] = await Promise.all([
+          api('/api/admin/dashboard'),
+          api('/api/admin/citas/proximas'),
+          api('/api/admin/config'),
+        ]);
+
+        if (dashRes.status === 401 || citasRes.status === 401) { logout(); return; }
+
+        const dash = await dashRes.json();
+        const citas = await citasRes.json();
+        const config = await configRes.json();
+
+        document.getElementById('barberiaName').textContent = config.nombre || 'Barbería Bot';
+        document.getElementById('citasHoy').textContent = dash.citasHoy;
+        document.getElementById('citasProximas').textContent = dash.citasProximas;
+        document.getElementById('totalBarberos').textContent = dash.totalBarberos;
+        document.getElementById('totalServicios').textContent = dash.totalServicios;
+
+        const container = document.getElementById('proximasCitas');
+        if (citas.length === 0) {
+          container.innerHTML = '<div class="text-gray-500 text-sm">No hay citas próximas</div>';
+        } else {
+          container.innerHTML = citas.slice(0, 10).map(c => `
+            <div class="flex items-center justify-between bg-gray-700/50 rounded-lg px-4 py-3">
+              <div>
+                <div class="font-medium">${c.cliente?.nombre || '—'}</div>
+                <div class="text-sm text-gray-400">${c.servicioNombre} · ${c.empleado?.nombre || '—'}</div>
+              </div>
+              <div class="text-right">
+                <div class="text-amber-400 font-medium">${formatFecha(c.fechaHora)}</div>
+                <div class="text-sm text-gray-400">${formatHora(c.fechaHora)}</div>
+              </div>
+            </div>
+          `).join('');
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function formatFecha(iso) {
+      return new Date(iso).toLocaleDateString('es-CO', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/Bogota' });
+    }
+    function formatHora(iso) {
+      return new Date(iso).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'America/Bogota' });
+    }
+
+    cargarDashboard();
+  </script>
+</body>
+</html>

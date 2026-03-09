@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>💈 Citas - Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+
+  <nav class="bg-gray-800 border-b border-gray-700 px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <span class="text-2xl">💈</span>
+      <span class="font-bold text-lg text-amber-400">Barbería Bot</span>
+    </div>
+    <div class="flex items-center gap-4">
+      <a href="/admin/dashboard.html" class="text-gray-300 hover:text-white">Inicio</a>
+      <a href="/admin/barberos.html" class="text-gray-300 hover:text-white">Barberos</a>
+      <a href="/admin/servicios.html" class="text-gray-300 hover:text-white">Servicios</a>
+      <a href="/admin/citas.html" class="text-amber-400 font-medium">Citas</a>
+      <a href="/admin/config.html" class="text-gray-300 hover:text-white">Configuración</a>
+      <button onclick="logout()" class="text-red-400 hover:text-red-300 text-sm">Salir</button>
+    </div>
+  </nav>
+
+  <main class="max-w-6xl mx-auto px-6 py-8">
+    <h1 class="text-2xl font-bold mb-6">Citas</h1>
+
+    <!-- Filtros -->
+    <div class="bg-gray-800 rounded-xl border border-gray-700 p-4 mb-6 flex flex-wrap gap-4 items-end">
+      <div>
+        <label class="block text-gray-300 text-sm mb-1">Fecha</label>
+        <input type="date" id="filtroFecha" class="bg-gray-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500">
+      </div>
+      <div>
+        <label class="block text-gray-300 text-sm mb-1">Estado</label>
+        <select id="filtroEstado" class="bg-gray-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500">
+          <option value="">Todos</option>
+          <option value="PENDIENTE">Pendiente</option>
+          <option value="CONFIRMADA">Confirmada</option>
+          <option value="COMPLETADA">Completada</option>
+          <option value="CANCELADA">Cancelada</option>
+        </select>
+      </div>
+      <div class="flex gap-2">
+        <button onclick="cargarCitas()" class="bg-amber-500 hover:bg-amber-600 text-black font-bold py-2 px-5 rounded-lg">Buscar</button>
+        <button onclick="cargarProximas()" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-5 rounded-lg">Próximas</button>
+      </div>
+    </div>
+
+    <div class="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+      <table class="w-full">
+        <thead class="bg-gray-700">
+          <tr>
+            <th class="text-left px-4 py-3 text-gray-300 text-sm font-medium">Cliente</th>
+            <th class="text-left px-4 py-3 text-gray-300 text-sm font-medium">Servicio</th>
+            <th class="text-left px-4 py-3 text-gray-300 text-sm font-medium">Barbero</th>
+            <th class="text-left px-4 py-3 text-gray-300 text-sm font-medium">Fecha y Hora</th>
+            <th class="text-left px-4 py-3 text-gray-300 text-sm font-medium">Estado</th>
+            <th class="px-4 py-3"></th>
+          </tr>
+        </thead>
+        <tbody id="tablaCitas">
+          <tr><td colspan="6" class="text-center py-8 text-gray-500">Cargando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <script>
+    const token = localStorage.getItem('adminToken');
+    if (!token) window.location.href = '/admin/index.html';
+    const api = (url, opts = {}) => fetch(url, { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, ...opts });
+    function logout() { localStorage.removeItem('adminToken'); window.location.href = '/admin/index.html'; }
+
+    const estadoColors = {
+      PENDIENTE: 'bg-yellow-900 text-yellow-300',
+      CONFIRMADA: 'bg-blue-900 text-blue-300',
+      COMPLETADA: 'bg-green-900 text-green-300',
+      CANCELADA: 'bg-red-900 text-red-300',
+    };
+
+    function formatFecha(iso) {
+      return new Date(iso).toLocaleDateString('es-CO', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', timeZone: 'America/Bogota' });
+    }
+    function formatHora(iso) {
+      return new Date(iso).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'America/Bogota' });
+    }
+
+    function renderCitas(citas) {
+      const tbody = document.getElementById('tablaCitas');
+      if (citas.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-gray-500">No se encontraron citas</td></tr>';
+        return;
+      }
+      tbody.innerHTML = citas.map(c => `
+        <tr class="border-t border-gray-700 hover:bg-gray-700/30">
+          <td class="px-4 py-3">
+            <div class="font-medium">${c.cliente?.nombre || '—'}</div>
+            <div class="text-xs text-gray-400">${c.cliente?.telefono || ''}</div>
+            <div class="text-xs text-gray-500">RAD: ${c.radicado}</div>
+          </td>
+          <td class="px-4 py-3 text-gray-300">${c.servicioNombre}</td>
+          <td class="px-4 py-3 text-gray-300">${c.empleado?.nombre || '—'}</td>
+          <td class="px-4 py-3">
+            <div class="text-amber-400">${formatFecha(c.fechaHora)}</div>
+            <div class="text-sm text-gray-400">${formatHora(c.fechaHora)}</div>
+          </td>
+          <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-full text-xs ${estadoColors[c.estado] || 'bg-gray-700 text-gray-300'}">${c.estado}</span></td>
+          <td class="px-4 py-3">
+            ${['PENDIENTE', 'CONFIRMADA'].includes(c.estado) ? `
+              <div class="flex gap-2">
+                <button onclick="cambiarEstado('${c.id}', 'COMPLETADA')" class="text-xs bg-green-800 hover:bg-green-700 px-2 py-1 rounded">Completar</button>
+                <button onclick="cancelarCita('${c.id}')" class="text-xs bg-red-800 hover:bg-red-700 px-2 py-1 rounded">Cancelar</button>
+              </div>
+            ` : ''}
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function cargarCitas() {
+      const fecha = document.getElementById('filtroFecha').value;
+      const estado = document.getElementById('filtroEstado').value;
+      let url = '/api/admin/citas?';
+      if (fecha) url += `fecha=${fecha}&`;
+      if (estado) url += `estado=${estado}`;
+      const res = await api(url);
+      if (res.status === 401) { logout(); return; }
+      const citas = await res.json();
+      renderCitas(citas);
+    }
+
+    async function cargarProximas() {
+      const res = await api('/api/admin/citas/proximas');
+      if (res.status === 401) { logout(); return; }
+      const citas = await res.json();
+      renderCitas(citas);
+    }
+
+    async function cambiarEstado(id, estado) {
+      if (!confirm(`¿Marcar cita como ${estado}?`)) return;
+      await api(`/api/admin/citas/${id}/estado`, { method: 'PUT', body: JSON.stringify({ estado }) });
+      cargarProximas();
+    }
+
+    async function cancelarCita(id) {
+      const motivo = prompt('Motivo de cancelación:');
+      if (motivo === null) return;
+      await api(`/api/admin/citas/${id}/estado`, { method: 'PUT', body: JSON.stringify({ estado: 'CANCELADA', motivoCancelacion: motivo || 'Cancelado por administrador' }) });
+      cargarProximas();
+    }
+
+    // Cargar próximas por defecto
+    cargarProximas();
+  </script>
+</body>
+</html>

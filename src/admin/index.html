@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>💈 Barbería Bot - Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 min-h-screen flex items-center justify-center">
+  <div class="bg-gray-800 rounded-2xl shadow-2xl p-8 w-full max-w-sm">
+    <div class="text-center mb-8">
+      <div class="text-5xl mb-3">💈</div>
+      <h1 class="text-2xl font-bold text-white">Panel de Administración</h1>
+      <p class="text-gray-400 text-sm mt-1">Barbería Bot</p>
+    </div>
+
+    <form id="loginForm">
+      <div class="mb-4">
+        <label class="block text-gray-300 text-sm font-medium mb-2">Usuario</label>
+        <input type="text" id="username" class="w-full bg-gray-700 text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-500" placeholder="admin" required>
+      </div>
+      <div class="mb-6">
+        <label class="block text-gray-300 text-sm font-medium mb-2">Contraseña</label>
+        <input type="password" id="password" class="w-full bg-gray-700 text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-500" placeholder="••••••••" required>
+      </div>
+      <button type="submit" class="w-full bg-amber-500 hover:bg-amber-600 text-black font-bold py-3 px-4 rounded-lg transition-colors">
+        Ingresar
+      </button>
+    </form>
+
+    <div id="errorMsg" class="hidden mt-4 text-red-400 text-sm text-center bg-red-900/30 rounded-lg py-2 px-3"></div>
+  </div>
+
+  <script>
+    // Redirigir si ya está logueado
+    const token = localStorage.getItem('adminToken');
+    if (token) window.location.href = '/admin/dashboard.html';
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+
+      try {
+        const res = await fetch('/api/admin/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          localStorage.setItem('adminToken', data.token);
+          window.location.href = '/admin/dashboard.html';
+        } else {
+          const err = document.getElementById('errorMsg');
+          err.textContent = data.error || 'Credenciales incorrectas';
+          err.classList.remove('hidden');
+        }
+      } catch {
+        const err = document.getElementById('errorMsg');
+        err.textContent = 'Error de conexión con el servidor';
+        err.classList.remove('hidden');
+      }
+    });
+  </script>
+</body>
+</html>
