@@ -2,8 +2,8 @@ import prisma from '../config/database';
 import { empleadosService } from './empleados.service';
 import { googleCalendarService } from './google-calendar.service';
 
-const HORA_ALMUERZO_INICIO = '13:00';
-const HORA_ALMUERZO_FIN = '14:30';
+const HORA_ALMUERZO_INICIO = '12:10';
+const HORA_ALMUERZO_FIN = '13:50';
 
 export class CitasService {
   async getAll(filters?: { fechaInicio?: Date; fechaFin?: Date; empleadoId?: string; estado?: string }) {
@@ -138,7 +138,7 @@ export class CitasService {
     return null;
   }
 
-  async calcularHorariosDisponibles(empleadoId: string, fecha: Date, duracionMinutos: number = 30): Promise<string[]> {
+  async calcularHorariosDisponibles(empleadoId: string, fecha: Date, duracionMinutos: number = 50): Promise<string[]> {
     const citasExistentes = await this.getByFecha(fecha, empleadoId).then(c => c.filter(ci => ['PENDIENTE', 'CONFIRMADA'].includes(ci.estado)));
     const empleado = await empleadosService.getById(empleadoId);
     if (!empleado) return [];

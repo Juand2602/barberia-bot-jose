@@ -100,6 +100,24 @@ export class WhatsAppMessagesService {
     });
   }
 
+  async enviarPlantilla(telefono: string, nombrePlantilla: string, idioma: string, parametros: string[]): Promise<any> {
+    return this.sendRequest('messages', {
+      messaging_product: 'whatsapp',
+      to: telefono,
+      type: 'template',
+      template: {
+        name: nombrePlantilla,
+        language: { code: idioma },
+        components: [
+          {
+            type: 'body',
+            parameters: parametros.map(valor => ({ type: 'text', text: valor })),
+          },
+        ],
+      },
+    });
+  }
+
   async marcarComoLeido(messageId: string): Promise<any> {
     return this.sendRequest('messages', {
       messaging_product: 'whatsapp',

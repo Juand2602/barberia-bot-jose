@@ -23,10 +23,23 @@ export class NotificacionesService {
 
 _Notificación automática del sistema_ 💈`;
 
-    // Notificar al empleado
+    // Notificar al empleado (usando plantilla para evitar restricción de 24h)
     if (cita.empleado.telefono) {
       try {
-        await whatsappMessagesService.enviarMensaje(cita.empleado.telefono, mensaje);
+        await whatsappMessagesService.enviarPlantilla(
+          cita.empleado.telefono,
+          'notificacion_cita',
+          'es',
+          [
+            cita.empleado.nombre,
+            cita.cliente.nombre,
+            cita.cliente.telefono,
+            formatearFecha(cita.fechaHora),
+            formatearHora(cita.fechaHora.toTimeString().substring(0, 5)),
+            cita.servicioNombre,
+            cita.radicado,
+          ]
+        );
       } catch (e) { console.error('Error notificando empleado:', e); }
     }
 
@@ -69,7 +82,22 @@ ${cita.motivoCancelacion ? `📝 *Motivo:* ${cita.motivoCancelacion}` : ''}
 _Notificación automática del sistema_ 💈`;
 
     if (cita.empleado.telefono) {
-      try { await whatsappMessagesService.enviarMensaje(cita.empleado.telefono, mensaje); } catch (e) {}
+      try {
+        await whatsappMessagesService.enviarPlantilla(
+          cita.empleado.telefono,
+          'cancelacion_cita',
+          'es',
+          [
+            cita.empleado.nombre,
+            cita.cliente.nombre,
+            cita.cliente.telefono,
+            formatearFecha(cita.fechaHora),
+            formatearHora(cita.fechaHora.toTimeString().substring(0, 5)),
+            cita.servicioNombre,
+            cita.radicado,
+          ]
+        );
+      } catch (e) { console.error('Error notificando empleado cancelación:', e); }
     }
     const telefonoJefe = process.env.JEFE_BARBERO_TELEFONO;
     if (telefonoJefe) {

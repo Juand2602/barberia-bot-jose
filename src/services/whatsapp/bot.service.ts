@@ -251,7 +251,7 @@ export class WhatsAppBotService {
     contexto.fecha = fechaLocal.toISOString();
     await whatsappMessagesService.enviarMensaje(telefono, MENSAJES.CONSULTANDO_AGENDA());
 
-    let horarios = await citasService.calcularHorariosDisponibles(contexto.empleadoId!, fechaLocal, 30);
+    let horarios = await citasService.calcularHorariosDisponibles(contexto.empleadoId!, fechaLocal, 50);
 
     const esHoy = fechaLocal.getTime() === hoy.getTime();
     if (esHoy) {
