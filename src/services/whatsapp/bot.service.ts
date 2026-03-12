@@ -119,11 +119,7 @@ export class WhatsAppBotService {
     }
 
     if (mensaje === 'menu_cancelar') {
-      await whatsappMessagesService.enviarMensajeConBotones(telefono, MENSAJES.SOLICITAR_RADICADO(), [
-        { id: 'tengo_radicado', title: '✅ Sí, lo tengo' },
-        { id: 'no_radicado', title: '❌ No lo tengo' },
-      ]);
-      await this.actualizarConversacion(conversacionId, 'ESPERANDO_RADICADO', { ...contexto, flujo: 'cancelacion' });
+      await this.buscarYMostrarCitasActivas(telefono, conversacionId, contexto);
       return;
     }
 
@@ -265,6 +261,9 @@ export class WhatsAppBotService {
       contexto.horariosDisponibles = horariosFormateados;
       contexto.horariosRaw = horarios;
       await whatsappMessagesService.enviarMensaje(telefono, MENSAJES.HORARIOS_DISPONIBLES(horariosFormateados));
+      await whatsappMessagesService.enviarMensajeConBotones(telefono, 'O si prefieres otra fecha:', [
+        { id: 'cambiar_fecha', title: '📅 Cambiar fecha' },
+      ]);
       await this.actualizarConversacion(conversacionId, 'ESPERANDO_HORA', contexto);
     } else {
       await whatsappMessagesService.enviarMensaje(telefono, MENSAJES.NO_HAY_HORARIOS());
@@ -279,6 +278,14 @@ export class WhatsAppBotService {
     if (messageParser.esComandoCancelacion(mensaje)) {
       await whatsappMessagesService.enviarMensaje(telefono, MENSAJES.DESPEDIDA());
       await this.finalizarConversacion(conversacionId);
+      return;
+    }
+
+    if (mensaje === 'cambiar_fecha') {
+      await whatsappMessagesService.enviarMensajeConBotones(telefono, MENSAJES.SOLICITAR_FECHA_TEXTO(), [
+        { id: 'fecha_hoy', title: '📅 Hoy' }, { id: 'fecha_manana', title: '📅 Mañana' }, { id: 'fecha_otro_dia', title: '📅 Otro día' },
+      ]);
+      await this.actualizarConversacion(conversacionId, 'ESPERANDO_FECHA', contexto);
       return;
     }
 
@@ -428,7 +435,8 @@ export class WhatsAppBotService {
   private async manejarConfirmacionCancelacion(telefono: string, mensaje: string, contexto: ConversationContext, conversacionId: string) {
     const n = messageParser.normalizarRespuesta(mensaje);
     if (mensaje === 'confirmar_cancelar' || messageParser.esAfirmativo(n) || n.includes('cancelar')) {
-      await citasService.cancelar(contexto.radicado!);
+      const citaCancelada = await citasService.cancelar(contexto.radicado!);
+      try { await notificacionesService.notificarCitaCancelada(citaCancelada.id); } catch (e) { console.error('Error notificando cancelación:', e); }
       await whatsappMessagesService.enviarMensaje(telefono, MENSAJES.CITA_CANCELADA());
       await whatsappMessagesService.enviarMensajeConBotones(telefono, '¿Le puedo servir en algo más?', [
         { id: 'si_mas', title: '✅ Sí' }, { id: 'no_mas', title: '❌ No' },

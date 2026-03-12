@@ -3,6 +3,7 @@ import { verificarAdmin, generarToken } from '../middleware/auth';
 import { empleadosService } from '../services/empleados.service';
 import { serviciosService } from '../services/servicios.service';
 import { citasService } from '../services/citas.service';
+import { notificacionesService } from '../services/notificaciones.service';
 import { barberiaConfig } from '../config/whatsapp';
 import prisma from '../config/database';
 
@@ -107,6 +108,9 @@ router.get('/citas/proximas', verificarAdmin, async (req, res) => {
 router.put('/citas/:id/estado', verificarAdmin, async (req, res) => {
   try {
     const cita = await citasService.cambiarEstado(req.params.id, req.body);
+    if (req.body.estado === 'CANCELADA') {
+      try { await notificacionesService.notificarCitaCancelada(cita.id); } catch (e) { console.error('Error notificando cancelación:', e); }
+    }
     res.json(cita);
   } catch (e: any) { res.status(400).json({ error: e.message }); }
 });
