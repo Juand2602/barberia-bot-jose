@@ -85,7 +85,7 @@ _Notificación automática del sistema_ 💈`;
       try {
         await whatsappMessagesService.enviarPlantilla(
           cita.empleado.telefono,
-          'cancelacion_cita',
+          'aviso_cancelacion',
           'es',
           [
             cita.empleado.nombre,
