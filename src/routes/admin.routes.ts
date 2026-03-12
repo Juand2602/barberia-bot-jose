@@ -4,6 +4,7 @@ import { empleadosService } from '../services/empleados.service';
 import { serviciosService } from '../services/servicios.service';
 import { citasService } from '../services/citas.service';
 import { notificacionesService } from '../services/notificaciones.service';
+import { clientesService } from '../services/clientes.service';
 import { barberiaConfig } from '../config/whatsapp';
 import prisma from '../config/database';
 
@@ -87,9 +88,9 @@ router.get('/citas', verificarAdmin, async (req, res) => {
     const { fecha, empleadoId, estado } = req.query;
     const filters: any = {};
     if (fecha) {
-      const d = new Date(fecha as string);
-      filters.fechaInicio = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
-      filters.fechaFin = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59);
+      const [year, month, day] = (fecha as string).split('-').map(Number);
+      filters.fechaInicio = new Date(year, month - 1, day, 0, 0, 0);
+      filters.fechaFin = new Date(year, month - 1, day, 23, 59, 59);
     }
     if (empleadoId) filters.empleadoId = empleadoId as string;
     if (estado) filters.estado = estado as string;
@@ -112,6 +113,22 @@ router.put('/citas/:id/estado', verificarAdmin, async (req, res) => {
       try { await notificacionesService.notificarCitaCancelada(cita.id); } catch (e) { console.error('Error notificando cancelación:', e); }
     }
     res.json(cita);
+  } catch (e: any) { res.status(400).json({ error: e.message }); }
+});
+
+// ==================== CLIENTES ====================
+router.get('/clientes', verificarAdmin, async (req, res) => {
+  try {
+    const { search } = req.query;
+    const clientes = await clientesService.getAll(search as string | undefined);
+    res.json(clientes);
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+router.put('/clientes/:id', verificarAdmin, async (req, res) => {
+  try {
+    const cliente = await clientesService.update(req.params.id, req.body);
+    res.json(cliente);
   } catch (e: any) { res.status(400).json({ error: e.message }); }
 });
 

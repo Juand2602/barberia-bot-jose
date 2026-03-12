@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>💈 Clientes - Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+
+  <nav class="bg-gray-800 border-b border-gray-700 px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <span class="text-2xl">💈</span>
+      <span class="font-bold text-lg text-amber-400">Barbería Bot</span>
+    </div>
+    <div class="flex items-center gap-4">
+      <a href="/admin/dashboard.html" class="text-gray-300 hover:text-white">Inicio</a>
+      <a href="/admin/barberos.html" class="text-gray-300 hover:text-white">Barberos</a>
+      <a href="/admin/servicios.html" class="text-gray-300 hover:text-white">Servicios</a>
+      <a href="/admin/citas.html" class="text-gray-300 hover:text-white">Citas</a>
+      <a href="/admin/clientes.html" class="text-amber-400 font-medium">Clientes</a>
+      <a href="/admin/config.html" class="text-gray-300 hover:text-white">Configuración</a>
+      <button onclick="logout()" class="text-red-400 hover:text-red-300 text-sm">Salir</button>
+    </div>
+  </nav>
+
+  <main class="max-w-6xl mx-auto px-6 py-8">
+    <h1 class="text-2xl font-bold mb-6">Clientes</h1>
+
+    <!-- Búsqueda -->
+    <div class="bg-gray-800 rounded-xl border border-gray-700 p-4 mb-6 flex gap-4 items-end">
+      <div class="flex-1">
+        <label class="block text-gray-300 text-sm mb-1">Buscar por nombre o teléfono</label>
+        <input type="text" id="busqueda" placeholder="Ej: Juan o 573001234567"
+          class="w-full bg-gray-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500"
+          onkeydown="if(event.key==='Enter') cargarClientes()">
+      </div>
+      <button onclick="cargarClientes()" class="bg-amber-500 hover:bg-amber-600 text-black font-bold py-2 px-5 rounded-lg">Buscar</button>
+      <button onclick="limpiar()" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-5 rounded-lg">Todos</button>
+    </div>
+
+    <div id="totalClientes" class="text-sm text-gray-400 mb-3"></div>
+
+    <div class="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+      <table class="w-full">
+        <thead class="bg-gray-700">
+          <tr>
+            <th class="text-left px-4 py-3 text-gray-300 text-sm font-medium">Cliente</th>
+            <th class="text-left px-4 py-3 text-gray-300 text-sm font-medium">Teléfono</th>
+            <th class="text-left px-4 py-3 text-gray-300 text-sm font-medium">Registro</th>
+            <th class="text-left px-4 py-3 text-gray-300 text-sm font-medium">Estado</th>
+            <th class="px-4 py-3"></th>
+          </tr>
+        </thead>
+        <tbody id="tablaClientes">
+          <tr><td colspan="5" class="text-center py-8 text-gray-500">Cargando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <!-- Modal editar -->
+  <div id="modalEditar" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+    <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 w-full max-w-md">
+      <h2 class="text-lg font-bold mb-4">Editar Cliente</h2>
+      <input type="hidden" id="editId">
+      <div class="mb-4">
+        <label class="block text-gray-300 text-sm mb-1">Nombre</label>
+        <input type="text" id="editNombre" class="w-full bg-gray-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500">
+      </div>
+      <div class="mb-4">
+        <label class="block text-gray-300 text-sm mb-1">Teléfono</label>
+        <input type="text" id="editTelefono" disabled class="w-full bg-gray-600 text-gray-400 rounded-lg px-3 py-2 cursor-not-allowed">
+      </div>
+      <div class="mb-6">
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" id="editActivo" class="w-4 h-4 accent-amber-500">
+          <span class="text-gray-300 text-sm">Cliente activo</span>
+        </label>
+      </div>
+      <div class="flex gap-3 justify-end">
+        <button onclick="cerrarModal()" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg">Cancelar</button>
+        <button onclick="guardarCliente()" class="bg-amber-500 hover:bg-amber-600 text-black font-bold px-4 py-2 rounded-lg">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const token = localStorage.getItem('adminToken');
+    if (!token) window.location.href = '/admin/index.html';
+    const api = (url, opts = {}) => fetch(url, { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, ...opts });
+    function logout() { localStorage.removeItem('adminToken'); window.location.href = '/admin/index.html'; }
+
+    function formatFecha(iso) {
+      return new Date(iso).toLocaleDateString('es-CO', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'America/Bogota' });
+    }
+
+    function renderClientes(clientes) {
+      const tbody = document.getElementById('tablaClientes');
+      document.getElementById('totalClientes').textContent = `${clientes.length} cliente(s) encontrado(s)`;
+      if (clientes.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-gray-500">No se encontraron clientes</td></tr>';
+        return;
+      }
+      tbody.innerHTML = clientes.map(c => `
+        <tr class="border-t border-gray-700 hover:bg-gray-700/30">
+          <td class="px-4 py-3 font-medium">${c.nombre}</td>
+          <td class="px-4 py-3 text-gray-300">${c.telefono}</td>
+          <td class="px-4 py-3 text-gray-400 text-sm">${formatFecha(c.fechaRegistro)}</td>
+          <td class="px-4 py-3">
+            <span class="px-2 py-0.5 rounded-full text-xs ${c.activo ? 'bg-green-900 text-green-300' : 'bg-red-900 text-red-300'}">
+              ${c.activo ? 'Activo' : 'Inactivo'}
+            </span>
+          </td>
+          <td class="px-4 py-3">
+            <button onclick="abrirModal(${JSON.stringify(c).replace(/"/g, '&quot;')})" class="text-xs bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded">Editar</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function cargarClientes() {
+      const search = document.getElementById('busqueda').value.trim();
+      const url = search ? `/api/admin/clientes?search=${encodeURIComponent(search)}` : '/api/admin/clientes';
+      const res = await api(url);
+      if (res.status === 401) { logout(); return; }
+      const clientes = await res.json();
+      renderClientes(clientes);
+    }
+
+    function limpiar() {
+      document.getElementById('busqueda').value = '';
+      cargarClientes();
+    }
+
+    function abrirModal(c) {
+      document.getElementById('editId').value = c.id;
+      document.getElementById('editNombre').value = c.nombre;
+      document.getElementById('editTelefono').value = c.telefono;
+      document.getElementById('editActivo').checked = c.activo;
+      document.getElementById('modalEditar').classList.remove('hidden');
+    }
+
+    function cerrarModal() {
+      document.getElementById('modalEditar').classList.add('hidden');
+    }
+
+    async function guardarCliente() {
+      const id = document.getElementById('editId').value;
+      const nombre = document.getElementById('editNombre').value.trim();
+      const activo = document.getElementById('editActivo').checked;
+      if (!nombre) { alert('El nombre es obligatorio'); return; }
+      const res = await api(`/api/admin/clientes/${id}`, { method: 'PUT', body: JSON.stringify({ nombre, activo }) });
+      if (res.ok) { cerrarModal(); cargarClientes(); }
+      else { const err = await res.json(); alert(err.error || 'Error al guardar'); }
+    }
+
+    cargarClientes();
+  </script>
+</body>
+</html>

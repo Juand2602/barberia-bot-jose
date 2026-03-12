@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import { WhatsAppWebhookPayload } from '../types';
 import { whatsappBotService } from '../services/whatsapp/bot.service';
 
+const mensajesProcesados = new Set<string>();
+
 export class WebhookController {
   async verificar(req: Request, res: Response) {
     const mode = req.query['hub.mode'];
@@ -18,24 +20,34 @@ export class WebhookController {
   }
 
   async recibirMensaje(req: Request, res: Response) {
+    // Responder 200 inmediatamente para evitar reintentos de WhatsApp
+    res.sendStatus(200);
+
     try {
       const body: WhatsAppWebhookPayload = req.body;
-      if (body.object !== 'whatsapp_business_account') return res.sendStatus(404);
+      if (body.object !== 'whatsapp_business_account') return;
 
       for (const entry of body.entry) {
         for (const change of entry.changes) {
           const value = change.value;
           if (value.messages) {
             for (const message of value.messages) {
-              await this.procesarMensaje(message);
+              // Ignorar mensajes ya procesados (reintentos del webhook)
+              if (mensajesProcesados.has(message.id)) {
+                console.log(`⚠️ Mensaje duplicado ignorado: ${message.id}`);
+                continue;
+              }
+              mensajesProcesados.add(message.id);
+              // Limpiar el set cada 1000 entradas para evitar uso excesivo de memoria
+              if (mensajesProcesados.size > 1000) mensajesProcesados.clear();
+
+              this.procesarMensaje(message);
             }
           }
         }
       }
-      res.sendStatus(200);
     } catch (error) {
       console.error('Error procesando webhook:', error);
-      res.sendStatus(500);
     }
   }
 
