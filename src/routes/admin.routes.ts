@@ -106,6 +106,19 @@ router.get('/citas/proximas', verificarAdmin, async (req, res) => {
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
+router.put('/citas/completar-dia', verificarAdmin, async (req, res) => {
+  try {
+    const hoy = new Date();
+    const inicioDia = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate(), 0, 0, 0);
+    const finDia = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate(), 23, 59, 59);
+    const result = await prisma.cita.updateMany({
+      where: { fechaHora: { gte: inicioDia, lte: finDia }, estado: { in: ['PENDIENTE', 'CONFIRMADA'] } },
+      data: { estado: 'COMPLETADA' },
+    });
+    res.json({ completadas: result.count });
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
 router.put('/citas/:id/estado', verificarAdmin, async (req, res) => {
   try {
     const cita = await citasService.cambiarEstado(req.params.id, req.body);
@@ -122,6 +135,17 @@ router.get('/clientes', verificarAdmin, async (req, res) => {
     const { search } = req.query;
     const clientes = await clientesService.getAll(search as string | undefined);
     res.json(clientes);
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/clientes/:id/citas', verificarAdmin, async (req, res) => {
+  try {
+    const citas = await prisma.cita.findMany({
+      where: { clienteId: req.params.id },
+      include: { empleado: true },
+      orderBy: { fechaHora: 'desc' },
+    });
+    res.json(citas);
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 

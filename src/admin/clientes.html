@@ -59,6 +59,19 @@
     </div>
   </main>
 
+  <!-- Modal citas del cliente -->
+  <div id="modalCitas" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+    <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 w-full max-w-2xl max-h-[80vh] flex flex-col">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-bold">Citas de <span id="modalCitasNombre" class="text-amber-400"></span></h2>
+        <button onclick="cerrarModalCitas()" class="text-gray-400 hover:text-white text-xl leading-none">&times;</button>
+      </div>
+      <div id="modalCitasContenido" class="overflow-y-auto flex-1">
+        <p class="text-gray-500 text-center py-6">Cargando...</p>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal editar -->
   <div id="modalEditar" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50">
     <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 w-full max-w-md">
@@ -112,7 +125,8 @@
               ${c.activo ? 'Activo' : 'Inactivo'}
             </span>
           </td>
-          <td class="px-4 py-3">
+          <td class="px-4 py-3 flex gap-2">
+            <button onclick="verCitas('${c.id}', '${c.nombre.replace(/'/g, "\\'")}')" class="text-xs bg-blue-800 hover:bg-blue-700 px-3 py-1 rounded">Ver citas</button>
             <button onclick="abrirModal(${JSON.stringify(c).replace(/"/g, '&quot;')})" class="text-xs bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded">Editar</button>
           </td>
         </tr>
@@ -153,6 +167,61 @@
       const res = await api(`/api/admin/clientes/${id}`, { method: 'PUT', body: JSON.stringify({ nombre, activo }) });
       if (res.ok) { cerrarModal(); cargarClientes(); }
       else { const err = await res.json(); alert(err.error || 'Error al guardar'); }
+    }
+
+    const estadoColors = {
+      PENDIENTE: 'bg-yellow-900 text-yellow-300',
+      CONFIRMADA: 'bg-blue-900 text-blue-300',
+      COMPLETADA: 'bg-green-900 text-green-300',
+      CANCELADA: 'bg-red-900 text-red-300',
+    };
+
+    async function verCitas(clienteId, nombre) {
+      document.getElementById('modalCitasNombre').textContent = nombre;
+      document.getElementById('modalCitasContenido').innerHTML = '<p class="text-gray-500 text-center py-6">Cargando...</p>';
+      document.getElementById('modalCitas').classList.remove('hidden');
+
+      const res = await api(`/api/admin/clientes/${clienteId}/citas`);
+      if (res.status === 401) { logout(); return; }
+      const citas = await res.json();
+
+      if (citas.length === 0) {
+        document.getElementById('modalCitasContenido').innerHTML = '<p class="text-gray-500 text-center py-6">Este cliente no tiene citas registradas</p>';
+        return;
+      }
+
+      document.getElementById('modalCitasContenido').innerHTML = `
+        <table class="w-full text-sm">
+          <thead class="bg-gray-700 sticky top-0">
+            <tr>
+              <th class="text-left px-3 py-2 text-gray-300">Fecha y Hora</th>
+              <th class="text-left px-3 py-2 text-gray-300">Servicio</th>
+              <th class="text-left px-3 py-2 text-gray-300">Barbero</th>
+              <th class="text-left px-3 py-2 text-gray-300">Estado</th>
+              <th class="text-left px-3 py-2 text-gray-300">Radicado</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${citas.map(c => `
+              <tr class="border-t border-gray-700 hover:bg-gray-700/30">
+                <td class="px-3 py-2">
+                  <div class="text-amber-400">${formatFecha(c.fechaHora)}</div>
+                  <div class="text-gray-400">${new Date(c.fechaHora).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'America/Bogota' })}</div>
+                </td>
+                <td class="px-3 py-2 text-gray-300">${c.servicioNombre}</td>
+                <td class="px-3 py-2 text-gray-300">${c.empleado?.nombre || '—'}</td>
+                <td class="px-3 py-2"><span class="px-2 py-0.5 rounded-full text-xs ${estadoColors[c.estado] || 'bg-gray-700 text-gray-300'}">${c.estado}</span></td>
+                <td class="px-3 py-2 text-gray-500 text-xs">${c.radicado}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        <p class="text-gray-500 text-xs text-right mt-2">${citas.length} cita(s) en total</p>
+      `;
+    }
+
+    function cerrarModalCitas() {
+      document.getElementById('modalCitas').classList.add('hidden');
     }
 
     cargarClientes();
