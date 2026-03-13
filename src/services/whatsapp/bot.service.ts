@@ -301,7 +301,11 @@ export class WhatsAppBotService {
       const horaSeleccionada = contexto.horariosRaw[opcion - 1];
       contexto.hora = horaSeleccionada;
 
-      const cliente = await clientesService.obtenerOCrear(telefono, contexto.nombre!);
+      const telefonoJefe = process.env.JEFE_BARBERO_TELEFONO;
+      const esJefe = telefonoJefe && telefono === telefonoJefe;
+      const cliente = esJefe
+        ? await clientesService.crearClienteDesdeJefe(contexto.nombre!, telefono)
+        : await clientesService.obtenerOCrear(telefono, contexto.nombre!);
       if (!cliente) { await whatsappMessagesService.enviarMensaje(telefono, MENSAJES.ERROR_SERVIDOR()); return; }
 
       const fechaBase = new Date(contexto.fecha!);

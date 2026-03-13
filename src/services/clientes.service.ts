@@ -60,6 +60,11 @@ export class ClientesService {
     }
     return cliente;
   }
+
+  async crearClienteDesdeJefe(nombreCliente: string, telefonoJefe: string) {
+    const telefonoSintetico = `proxy_${telefonoJefe}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    return this.crear({ nombre: nombreCliente, telefono: telefonoSintetico });
+  }
 }
 
 export const clientesService = new ClientesService();

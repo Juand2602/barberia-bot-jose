@@ -43,9 +43,9 @@ _Notificación automática del sistema_ 💈`;
       } catch (e) { console.error('Error notificando empleado:', e); }
     }
 
-    // Notificar al jefe barbero
+    // Notificar al jefe barbero (solo si no es el mismo barbero de la cita)
     const telefonoJefe = process.env.JEFE_BARBERO_TELEFONO;
-    if (telefonoJefe) {
+    if (telefonoJefe && telefonoJefe !== cita.empleado.telefono) {
       try {
         await whatsappMessagesService.enviarMensaje(telefonoJefe, `👔 *Notificación Jefe Barbero*\n\n${mensaje}`);
       } catch (e) { console.error('Error notificando jefe:', e); }
@@ -100,7 +100,7 @@ _Notificación automática del sistema_ 💈`;
       } catch (e) { console.error('Error notificando empleado cancelación:', e); }
     }
     const telefonoJefe = process.env.JEFE_BARBERO_TELEFONO;
-    if (telefonoJefe) {
+    if (telefonoJefe && telefonoJefe !== cita.empleado.telefono) {
       try { await whatsappMessagesService.enviarMensaje(telefonoJefe, mensaje); } catch (e) {}
     }
     const telefonoAdmin = process.env.ADMINISTRADORA_TELEFONO;
