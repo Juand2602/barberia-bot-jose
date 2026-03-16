@@ -108,9 +108,17 @@ router.get('/citas/proximas', verificarAdmin, async (req, res) => {
 
 router.put('/citas/completar-dia', verificarAdmin, async (req, res) => {
   try {
-    const hoy = new Date();
-    const inicioDia = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate(), 0, 0, 0);
-    const finDia = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate(), 23, 59, 59);
+    const { fecha } = req.query;
+    let inicioDia: Date, finDia: Date;
+    if (fecha) {
+      const [year, month, day] = (fecha as string).split('-').map(Number);
+      inicioDia = new Date(year, month - 1, day, 0, 0, 0);
+      finDia = new Date(year, month - 1, day, 23, 59, 59);
+    } else {
+      const hoy = new Date();
+      inicioDia = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate(), 0, 0, 0);
+      finDia = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate(), 23, 59, 59);
+    }
     const result = await prisma.cita.updateMany({
       where: { fechaHora: { gte: inicioDia, lte: finDia }, estado: { in: ['PENDIENTE', 'CONFIRMADA'] } },
       data: { estado: 'COMPLETADA' },
