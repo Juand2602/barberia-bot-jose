@@ -8,19 +8,35 @@
 </head>
 <body class="bg-gray-900 text-white min-h-screen">
 
-  <nav class="bg-gray-800 border-b border-gray-700 px-6 py-4 flex items-center justify-between">
-    <div class="flex items-center gap-3">
-      <span class="text-2xl">💈</span>
-      <span class="font-bold text-lg text-amber-400">Barbería Bot</span>
+  <nav class="bg-gray-800 border-b border-gray-700">
+    <div class="px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <span class="text-2xl">💈</span>
+        <span class="font-bold text-lg text-amber-400">Barbería Bot</span>
+      </div>
+      <button onclick="toggleMenu()" class="md:hidden p-2 text-gray-400 hover:text-white rounded-lg">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+      <div class="hidden md:flex items-center gap-4">
+        <a href="/admin/dashboard.html" class="text-gray-300 hover:text-white">Inicio</a>
+        <a href="/admin/barberos.html" class="text-gray-300 hover:text-white">Barberos</a>
+        <a href="/admin/servicios.html" class="text-gray-300 hover:text-white">Servicios</a>
+        <a href="/admin/citas.html" class="text-gray-300 hover:text-white">Citas</a>
+        <a href="/admin/clientes.html" class="text-gray-300 hover:text-white">Clientes</a>
+        <a href="/admin/config.html" class="text-amber-400 font-medium">Configuración</a>
+        <button onclick="logout()" class="text-red-400 hover:text-red-300 text-sm">Salir</button>
+      </div>
     </div>
-    <div class="flex items-center gap-4">
-      <a href="/admin/dashboard.html" class="text-gray-300 hover:text-white">Inicio</a>
-      <a href="/admin/barberos.html" class="text-gray-300 hover:text-white">Barberos</a>
-      <a href="/admin/servicios.html" class="text-gray-300 hover:text-white">Servicios</a>
-      <a href="/admin/citas.html" class="text-gray-300 hover:text-white">Citas</a>
-      <a href="/admin/clientes.html" class="text-gray-300 hover:text-white">Clientes</a>
+    <div id="mobileMenu" class="hidden md:hidden border-t border-gray-700 px-4 py-3 flex flex-col gap-3">
+      <a href="/admin/dashboard.html" class="text-gray-300">Inicio</a>
+      <a href="/admin/barberos.html" class="text-gray-300">Barberos</a>
+      <a href="/admin/servicios.html" class="text-gray-300">Servicios</a>
+      <a href="/admin/citas.html" class="text-gray-300">Citas</a>
+      <a href="/admin/clientes.html" class="text-gray-300">Clientes</a>
       <a href="/admin/config.html" class="text-amber-400 font-medium">Configuración</a>
-      <button onclick="logout()" class="text-red-400 hover:text-red-300 text-sm">Salir</button>
+      <button onclick="logout()" class="text-red-400 text-sm text-left">Salir</button>
     </div>
   </nav>
 
@@ -44,6 +60,8 @@
   </main>
 
   <script>
+    function toggleMenu() { document.getElementById('mobileMenu').classList.toggle('hidden'); }
+
     const token = localStorage.getItem('adminToken');
     if (!token) window.location.href = '/admin/index.html';
     const api = (url, opts = {}) => fetch(url, { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, ...opts });
@@ -55,7 +73,7 @@
       const config = await res.json();
       const container = document.getElementById('configInfo');
       container.innerHTML = `
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           ${renderItem('Nombre del negocio', config.nombre)}
           ${renderItem('Dirección', config.direccion)}
           ${renderItem('Hora apertura', config.horaApertura)}

@@ -30,3 +30,6 @@ Thumbs.db
 # Google credentials
 google-credentials.json
 token.json
+
+.claude/
+CLAUDE.md
