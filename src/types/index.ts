@@ -34,7 +34,6 @@ export type ConversationState =
   | 'ESPERANDO_NOMBRE'
   | 'ESPERANDO_FECHA'
   | 'ESPERANDO_FECHA_ESPECIFICA'
-  | 'ESPERANDO_VER_FOTOS_BARBEROS'
   | 'ESPERANDO_HORA'
   | 'ESPERANDO_RADICADO'
   | 'ESPERANDO_SELECCION_CITA_CANCELAR'
@@ -61,12 +60,6 @@ export interface ConversationContext {
     servicio: string;
     fecha: string;
     hora: string;
-  }>;
-  barberos?: Array<{
-    id: string;
-    nombre: string;
-    fotoUrl?: string | null;
-    especialidades?: string | null;
   }>;
   flujo?: string;
 }

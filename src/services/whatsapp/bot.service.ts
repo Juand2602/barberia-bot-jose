@@ -59,7 +59,6 @@ export class WhatsAppBotService {
   private async procesarEstado(telefono: string, mensaje: string, estado: ConversationState, contexto: ConversationContext, conversacionId: string) {
     switch (estado) {
       case 'INICIAL': await this.manejarInicial(telefono, mensaje, contexto, conversacionId); break;
-      case 'ESPERANDO_VER_FOTOS_BARBEROS': await this.manejarVerFotosBarberos(telefono, mensaje, contexto, conversacionId); break;
       case 'ESPERANDO_BARBERO': await this.manejarSeleccionBarbero(telefono, mensaje, contexto, conversacionId); break;
       case 'ESPERANDO_NOMBRE': await this.manejarNombre(telefono, mensaje, contexto, conversacionId); break;
       case 'ESPERANDO_FECHA': await this.manejarFecha(telefono, mensaje, contexto, conversacionId); break;
@@ -101,20 +100,11 @@ export class WhatsAppBotService {
 
     if (mensaje === 'menu_agendar') {
       const barberos = await empleadosService.getAll(true);
-      const imagenMosaico = process.env.BARBEROS_MOSAICO_URL;
-      if (imagenMosaico) {
-        await whatsappMessagesService.enviarImagen(telefono, imagenMosaico, '💈 *Nuestro Equipo de Profesionales*\n\nSelecciona tu barbero de confianza:');
-        await new Promise(r => setTimeout(r, 800));
-      } else {
-        await whatsappMessagesService.enviarMensaje(telefono, '💈 *Nuestro Equipo de Profesionales*\n\nSelecciona tu barbero de confianza:');
-        await new Promise(r => setTimeout(r, 500));
-      }
-      await whatsappMessagesService.enviarMensajeConBotones(telefono, '¿Deseas ver las fotos individuales de cada barbero?', [
-        { id: 'ver_fotos_si', title: '👀 Sí, ver fotos' },
-        { id: 'ver_fotos_no', title: '➡️ No, continuar' },
-      ]);
-      contexto.barberos = barberos.map(b => ({ id: b.id, nombre: b.nombre, fotoUrl: b.fotoUrl, especialidades: b.especialidades }));
-      await this.actualizarConversacion(conversacionId, 'ESPERANDO_VER_FOTOS_BARBEROS', contexto);
+      await whatsappMessagesService.enviarMensajeConLista(
+        telefono, MENSAJES.ELEGIR_BARBERO_TEXTO(), 'Ver barberos',
+        [{ title: 'Nuestros Profesionales', rows: barberos.map(b => ({ id: `barbero_${b.id}`, title: b.nombre.substring(0, 24), description: (Array.isArray(b.especialidades) ? b.especialidades.join(', ') : String(b.especialidades || 'Barbero profesional')).substring(0, 72) })) }]
+      );
+      await this.actualizarConversacion(conversacionId, 'ESPERANDO_BARBERO', contexto);
       return;
     }
 
@@ -125,31 +115,6 @@ export class WhatsAppBotService {
 
     await whatsappMessagesService.enviarMensaje(telefono, MENSAJES.OPCION_INVALIDA());
     await this.enviarMenuPrincipal(telefono);
-  }
-
-  private async manejarVerFotosBarberos(telefono: string, mensaje: string, contexto: ConversationContext, conversacionId: string) {
-    if (mensaje === 'ver_fotos_si') {
-      for (const barbero of (contexto.barberos || [])) {
-        if (barbero.fotoUrl) {
-          const esp = barbero.especialidades ? `✂️ ${Array.isArray(barbero.especialidades) ? barbero.especialidades.join(', ') : barbero.especialidades}` : '';
-          try {
-            await whatsappMessagesService.enviarImagen(telefono, barbero.fotoUrl, `👨‍🦲 *${barbero.nombre}*\n${esp}`);
-            await new Promise(r => setTimeout(r, 1000));
-          } catch (e) { console.error(`Error foto ${barbero.nombre}:`, e); }
-        }
-      }
-      await new Promise(r => setTimeout(r, 500));
-    } else {
-      await whatsappMessagesService.enviarMensaje(telefono, '✅ Perfecto, continuemos con tu cita');
-      await new Promise(r => setTimeout(r, 500));
-    }
-
-    const barberos = contexto.barberos || await empleadosService.getAll(true);
-    await whatsappMessagesService.enviarMensajeConLista(
-      telefono, MENSAJES.ELEGIR_BARBERO_TEXTO(), 'Ver barberos',
-      [{ title: 'Nuestros Profesionales', rows: barberos.map((b: any) => ({ id: `barbero_${b.id}`, title: b.nombre.substring(0, 24), description: (Array.isArray(b.especialidades) ? b.especialidades.join(', ') : String(b.especialidades || 'Barbero profesional')).substring(0, 72) })) }]
-    );
-    await this.actualizarConversacion(conversacionId, 'ESPERANDO_BARBERO', contexto);
   }
 
   private async manejarRespuestaSimple(telefono: string, mensaje: string, contexto: ConversationContext, conversacionId: string) {
