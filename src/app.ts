@@ -25,14 +25,21 @@ app.use((req, _res, next) => {
 });
 
 // ==================== PANEL ADMIN (archivos estáticos) ====================
-const adminPath = path.join(__dirname, 'admin');
-app.use('/admin', express.static(adminPath));
-app.get('/admin', (_req, res) => res.sendFile(path.join(adminPath, 'index.html')));
-app.get('/admin/*', (_req, res) => res.sendFile(path.join(adminPath, 'index.html')));
+const adminPanelEnabled = process.env.ADMIN_PANEL_ENABLED !== 'false';
+
+if (adminPanelEnabled) {
+  const adminPath = path.join(__dirname, 'admin');
+  app.use('/admin', express.static(adminPath));
+  app.get('/admin', (_req, res) => res.sendFile(path.join(adminPath, 'index.html')));
+  app.get('/admin/*', (_req, res) => res.sendFile(path.join(adminPath, 'index.html')));
+}
 
 // ==================== API RUTAS ====================
 app.use('/webhook', webhookRoutes);
-app.use('/api/admin', adminRoutes);
+
+if (adminPanelEnabled) {
+  app.use('/api/admin', adminRoutes);
+}
 
 // Health check
 app.get('/health', (_req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString(), service: 'barberia-bot' }));
@@ -52,8 +59,12 @@ cron.schedule('*/5 * * * *', async () => {
 app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
   console.log(`📱 Webhook WhatsApp: http://localhost:${PORT}/webhook`);
-  console.log(`⚙️  Panel Admin: http://localhost:${PORT}/admin`);
-  console.log(`🔌 API Admin: http://localhost:${PORT}/api/admin`);
+  if (adminPanelEnabled) {
+    console.log(`⚙️  Panel Admin: http://localhost:${PORT}/admin`);
+    console.log(`🔌 API Admin: http://localhost:${PORT}/api/admin`);
+  } else {
+    console.log('⚙️  Panel Admin: desactivado (ADMIN_PANEL_ENABLED=false)');
+  }
 });
 
 export default app;
