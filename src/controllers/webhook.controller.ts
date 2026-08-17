@@ -41,7 +41,7 @@ export class WebhookController {
               // Limpiar el set cada 1000 entradas para evitar uso excesivo de memoria
               if (mensajesProcesados.size > 1000) mensajesProcesados.clear();
 
-              this.procesarMensaje(message);
+              this.procesarMensaje(message, value.contacts);
             }
           }
         }
@@ -51,9 +51,18 @@ export class WebhookController {
     }
   }
 
-  private async procesarMensaje(message: any) {
+  private async procesarMensaje(message: any, contacts?: Array<{ wa_id?: string; user_id?: string }>) {
     try {
-      const telefono = message.from;
+      // Si el usuario adoptó un "username" de WhatsApp y no compartió su número recientemente,
+      // Meta omite `message.from` y en su lugar manda su BSUID (identificador estable) en `from_user_id`.
+      const telefono = message.from || message.from_user_id || contacts?.[0]?.user_id;
+      if (!message.from) {
+        console.warn(`⚠️ Mensaje sin "from" (posible usuario con username de WhatsApp), usando BSUID de respaldo: ${JSON.stringify({ messageId: message.id, telefono, contacts })}`);
+      }
+      if (!telefono) {
+        console.error(`❌ Mensaje sin remitente identificable, no se puede responder: ${message.id}`);
+        return;
+      }
       if (message.type === 'text') {
         const texto = message.text?.body;
         if (texto) await whatsappBotService.procesarMensaje(telefono, texto, false);
