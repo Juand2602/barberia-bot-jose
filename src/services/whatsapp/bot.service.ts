@@ -39,8 +39,10 @@ export class WhatsAppBotService {
       const contexto: ConversationContext = JSON.parse(conversacion.contexto);
       const mensajeAProcesar = esBoton && buttonId ? buttonId : mensaje;
       await this.procesarEstado(telefono, mensajeAProcesar, estado, contexto, conversacion.id);
-    } catch (error) {
-      console.error('Error procesando mensaje:', error);
+    } catch (error: any) {
+      // Solo el mensaje/respuesta, no el objeto completo: un error de Axios trae sockets y
+      // structs internas de Node que generan miles de líneas de log por cada fallo.
+      console.error('Error procesando mensaje:', error?.response?.data || error?.message || error);
       await whatsappMessagesService.enviarMensaje(telefono, MENSAJES.ERROR_SERVIDOR());
     }
   }
@@ -269,7 +271,7 @@ export class WhatsAppBotService {
       const telefonoJefe = process.env.JEFE_BARBERO_TELEFONO;
       const esJefe = telefonoJefe && telefono === telefonoJefe;
       const cliente = esJefe
-        ? await clientesService.crearClienteDesdeJefe(contexto.nombre!, telefono)
+        ? await clientesService.obtenerOCrearDesdeJefe(contexto.nombre!, telefono)
         : await clientesService.obtenerOCrear(telefono, contexto.nombre!);
       if (!cliente) { await whatsappMessagesService.enviarMensaje(telefono, MENSAJES.ERROR_SERVIDOR()); return; }
 

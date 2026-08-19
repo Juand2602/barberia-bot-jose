@@ -72,9 +72,21 @@ export class ClientesService {
     return cliente;
   }
 
-  async crearClienteDesdeJefe(nombreCliente: string, telefonoJefe: string) {
+  // Los clientes agendados por el jefe no tienen número real (todo pasa por el teléfono del
+  // jefe), así que se identifican por nombre entre los "proxy_<telefonoJefe>_..." ya creados.
+  // Si coincide el nombre, se reutiliza ese Cliente en vez de crear uno nuevo cada vez.
+  async obtenerOCrearDesdeJefe(nombreCliente: string, telefonoJefe: string) {
+    const nombreNormalizado = nombreCliente.trim();
+    const existente = await prisma.cliente.findFirst({
+      where: {
+        telefono: { startsWith: `proxy_${telefonoJefe}_` },
+        nombre: { equals: nombreNormalizado, mode: 'insensitive' },
+      },
+    });
+    if (existente) return existente;
+
     const telefonoSintetico = `proxy_${telefonoJefe}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-    return this.crear({ nombre: nombreCliente, telefono: telefonoSintetico });
+    return this.crear({ nombre: nombreNormalizado, telefono: telefonoSintetico });
   }
 }
 
