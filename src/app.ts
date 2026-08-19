@@ -53,7 +53,11 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
 
 // ==================== CRON JOBS ====================
 cron.schedule('*/5 * * * *', async () => {
-  await limpiarConversacionesInactivas();
+  try {
+    await limpiarConversacionesInactivas();
+  } catch (error) {
+    console.error('❌ Error en cron de limpieza:', error);
+  }
 });
 
 app.listen(PORT, () => {

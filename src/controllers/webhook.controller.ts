@@ -44,6 +44,13 @@ export class WebhookController {
               this.procesarMensaje(message, value.contacts);
             }
           }
+
+          // Estados de entrega de mensajes enviados por el bot (sent, delivered, read, failed)
+          if (value.statuses) {
+            for (const status of value.statuses) {
+              console.log(`📊 Estado del mensaje ${status.id}: ${status.status}`);
+            }
+          }
         }
       }
     } catch (error) {

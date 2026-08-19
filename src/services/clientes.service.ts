@@ -16,6 +16,17 @@ export class ClientesService {
     });
   }
 
+  // Variante atómica de buscar+crear: evita la condición de carrera de "SELECT luego INSERT"
+  // cuando llegan mensajes casi simultáneos de un mismo número nuevo (dos requests concurrentes
+  // intentando crear el mismo Cliente chocarían contra el índice único de `telefono`).
+  async buscarOCrearAtomico(telefono: string, nombre: string) {
+    return prisma.cliente.upsert({
+      where: { telefono },
+      create: { nombre: nombre.trim(), telefono: telefono.trim(), activo: true },
+      update: {},
+    });
+  }
+
   async getAll(search?: string) {
     const where: any = {};
     if (search) {
