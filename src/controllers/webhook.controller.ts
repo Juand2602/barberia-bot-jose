@@ -72,13 +72,18 @@ export class WebhookController {
       }
       if (message.type === 'text') {
         const texto = message.text?.body;
-        if (texto) await whatsappBotService.procesarMensaje(telefono, texto, false);
+        if (texto) {
+          console.log(`📩 Mensaje de texto de ${telefono}: ${texto}`);
+          await whatsappBotService.procesarMensaje(telefono, texto, false);
+        }
       } else if (message.type === 'interactive') {
         if (message.interactive?.button_reply) {
-          const { id } = message.interactive.button_reply;
+          const { id, title } = message.interactive.button_reply;
+          console.log(`🔘 Botón presionado por ${telefono}: ${title} (ID: ${id})`);
           await whatsappBotService.procesarMensaje(telefono, id, true, id);
         } else if (message.interactive?.list_reply) {
-          const { id } = message.interactive.list_reply;
+          const { id, title } = message.interactive.list_reply;
+          console.log(`📋 Elemento de lista seleccionado por ${telefono}: ${title} (ID: ${id})`);
           await whatsappBotService.procesarMensaje(telefono, id, true, id);
         }
       }
