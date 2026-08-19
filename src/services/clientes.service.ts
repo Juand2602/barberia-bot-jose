@@ -27,7 +27,7 @@ export class ClientesService {
     });
   }
 
-  async getAll(search?: string) {
+  async getAll(search?: string, page = 1, pageSize = 20) {
     const where: any = {};
     if (search) {
       where.OR = [
@@ -35,7 +35,16 @@ export class ClientesService {
         { telefono: { contains: search } },
       ];
     }
-    return prisma.cliente.findMany({ where, orderBy: { createdAt: 'desc' } });
+    const [data, total] = await Promise.all([
+      prisma.cliente.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      prisma.cliente.count({ where }),
+    ]);
+    return { data, total, page, pageSize, totalPages: Math.max(1, Math.ceil(total / pageSize)) };
   }
 
   async update(id: string, data: any) {

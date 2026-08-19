@@ -49,9 +49,9 @@
         <label class="block text-gray-300 text-sm mb-1">Buscar por nombre o teléfono</label>
         <input type="text" id="busqueda" placeholder="Ej: Juan o 573001234567"
           class="w-full bg-gray-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500"
-          onkeydown="if(event.key==='Enter') cargarClientes()">
+          onkeydown="if(event.key==='Enter') buscar()">
       </div>
-      <button onclick="cargarClientes()" class="bg-amber-500 hover:bg-amber-600 text-black font-bold py-2 px-5 rounded-lg">Buscar</button>
+      <button onclick="buscar()" class="bg-amber-500 hover:bg-amber-600 text-black font-bold py-2 px-5 rounded-lg">Buscar</button>
       <button onclick="limpiar()" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-5 rounded-lg">Todos</button>
     </div>
 
@@ -73,6 +73,9 @@
         </tbody>
       </table>
     </div>
+
+    <!-- Paginación -->
+    <div id="paginacion" class="flex items-center justify-between mt-4 text-sm text-gray-400"></div>
   </main>
 
   <!-- Modal citas del cliente -->
@@ -126,9 +129,30 @@
       return new Date(iso).toLocaleDateString('es-CO', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'America/Bogota' });
     }
 
+    const PAGE_SIZE = 20;
+    let paginaActual = 1;
+
+    function renderPaginacion(total, page, totalPages) {
+      const el = document.getElementById('paginacion');
+      if (total === 0) { el.innerHTML = ''; return; }
+      el.innerHTML = `
+        <span>Página ${page} de ${totalPages}</span>
+        <div class="flex gap-2">
+          <button onclick="irAPagina(${page - 1})" ${page <= 1 ? 'disabled' : ''}
+            class="px-3 py-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed">Anterior</button>
+          <button onclick="irAPagina(${page + 1})" ${page >= totalPages ? 'disabled' : ''}
+            class="px-3 py-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed">Siguiente</button>
+        </div>
+      `;
+    }
+
+    function irAPagina(pagina) {
+      paginaActual = pagina;
+      cargarClientes();
+    }
+
     function renderClientes(clientes) {
       const tbody = document.getElementById('tablaClientes');
-      document.getElementById('totalClientes').textContent = `${clientes.length} cliente(s) encontrado(s)`;
       if (clientes.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-gray-500">No se encontraron clientes</td></tr>';
         return;
@@ -153,15 +177,24 @@
 
     async function cargarClientes() {
       const search = document.getElementById('busqueda').value.trim();
-      const url = search ? `/api/admin/clientes?search=${encodeURIComponent(search)}` : '/api/admin/clientes';
-      const res = await api(url);
+      const params = new URLSearchParams({ page: paginaActual, pageSize: PAGE_SIZE });
+      if (search) params.set('search', search);
+      const res = await api(`/api/admin/clientes?${params}`);
       if (res.status === 401) { logout(); return; }
-      const clientes = await res.json();
-      renderClientes(clientes);
+      const { data, total, page, totalPages } = await res.json();
+      document.getElementById('totalClientes').textContent = `${total} cliente(s) encontrado(s)`;
+      renderClientes(data);
+      renderPaginacion(total, page, totalPages);
+    }
+
+    function buscar() {
+      paginaActual = 1;
+      cargarClientes();
     }
 
     function limpiar() {
       document.getElementById('busqueda').value = '';
+      paginaActual = 1;
       cargarClientes();
     }
 

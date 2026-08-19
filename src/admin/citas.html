@@ -60,7 +60,7 @@
         </select>
       </div>
       <div class="flex gap-2">
-        <button onclick="cargarCitas()" class="bg-amber-500 hover:bg-amber-600 text-black font-bold py-2 px-5 rounded-lg">Buscar</button>
+        <button onclick="buscarCitas()" class="bg-amber-500 hover:bg-amber-600 text-black font-bold py-2 px-5 rounded-lg">Buscar</button>
         <button onclick="cargarProximas()" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-5 rounded-lg">Próximas</button>
         <button onclick="completarDia()" class="bg-green-700 hover:bg-green-600 text-white font-bold py-2 px-5 rounded-lg">Completar día</button>
       </div>
@@ -83,6 +83,9 @@
         </tbody>
       </table>
     </div>
+
+    <!-- Paginación (solo aplica a búsquedas con filtros, no a "Próximas") -->
+    <div id="paginacion" class="flex items-center justify-between mt-4 text-sm text-gray-400"></div>
   </main>
 
   <script>
@@ -105,6 +108,28 @@
     }
     function formatHora(iso) {
       return new Date(iso).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'America/Bogota' });
+    }
+
+    const PAGE_SIZE = 20;
+    let paginaActual = 1;
+
+    function renderPaginacion(total, page, totalPages) {
+      const el = document.getElementById('paginacion');
+      if (!total) { el.innerHTML = ''; return; }
+      el.innerHTML = `
+        <span>Página ${page} de ${totalPages} (${total} cita(s))</span>
+        <div class="flex gap-2">
+          <button onclick="irAPagina(${page - 1})" ${page <= 1 ? 'disabled' : ''}
+            class="px-3 py-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed">Anterior</button>
+          <button onclick="irAPagina(${page + 1})" ${page >= totalPages ? 'disabled' : ''}
+            class="px-3 py-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed">Siguiente</button>
+        </div>
+      `;
+    }
+
+    function irAPagina(pagina) {
+      paginaActual = pagina;
+      cargarCitas();
     }
 
     function renderCitas(citas) {
@@ -142,13 +167,19 @@
     async function cargarCitas() {
       const fecha = document.getElementById('filtroFecha').value;
       const estado = document.getElementById('filtroEstado').value;
-      let url = '/api/admin/citas?';
-      if (fecha) url += `fecha=${fecha}&`;
-      if (estado) url += `estado=${estado}`;
-      const res = await api(url);
+      const params = new URLSearchParams({ page: paginaActual, pageSize: PAGE_SIZE });
+      if (fecha) params.set('fecha', fecha);
+      if (estado) params.set('estado', estado);
+      const res = await api(`/api/admin/citas?${params}`);
       if (res.status === 401) { logout(); return; }
-      const citas = await res.json();
-      renderCitas(citas);
+      const { data, total, page, totalPages } = await res.json();
+      renderCitas(data);
+      renderPaginacion(total, page, totalPages);
+    }
+
+    function buscarCitas() {
+      paginaActual = 1;
+      cargarCitas();
     }
 
     async function cargarProximas() {
@@ -156,6 +187,7 @@
       if (res.status === 401) { logout(); return; }
       const citas = await res.json();
       renderCitas(citas);
+      document.getElementById('paginacion').innerHTML = '';
     }
 
     async function cambiarEstado(id, estado) {

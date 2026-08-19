@@ -6,7 +6,11 @@ const HORA_ALMUERZO_INICIO = '12:10';
 const HORA_ALMUERZO_FIN = '13:50';
 
 export class CitasService {
-  async getAll(filters?: { fechaInicio?: Date; fechaFin?: Date; empleadoId?: string; estado?: string }) {
+  async getAll(
+    filters?: { fechaInicio?: Date; fechaFin?: Date; empleadoId?: string; estado?: string },
+    page = 1,
+    pageSize = 20
+  ) {
     const where: any = {};
     if (filters) {
       if (filters.fechaInicio || filters.fechaFin) {
@@ -17,11 +21,17 @@ export class CitasService {
       if (filters.empleadoId) where.empleadoId = filters.empleadoId;
       if (filters.estado) where.estado = filters.estado;
     }
-    return prisma.cita.findMany({
-      where,
-      include: { cliente: true, empleado: true },
-      orderBy: { fechaHora: 'asc' },
-    });
+    const [data, total] = await Promise.all([
+      prisma.cita.findMany({
+        where,
+        include: { cliente: true, empleado: true },
+        orderBy: { fechaHora: 'asc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      prisma.cita.count({ where }),
+    ]);
+    return { data, total, page, pageSize, totalPages: Math.max(1, Math.ceil(total / pageSize)) };
   }
 
   async getByFecha(fecha: Date, empleadoId?: string) {

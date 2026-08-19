@@ -48,7 +48,14 @@ export class WebhookController {
           // Estados de entrega de mensajes enviados por el bot (sent, delivered, read, failed)
           if (value.statuses) {
             for (const status of value.statuses) {
-              console.log(`📊 Estado del mensaje ${status.id}: ${status.status}`);
+              if (status.status === 'failed' && status.errors?.length) {
+                const err = status.errors[0];
+                const esRateLimit = err.code === 131056 || err.code === 130429;
+                const prefijo = esRateLimit ? '⏱️ Rate limit' : '❌ Mensaje falló';
+                console.warn(`${prefijo} (${status.id}): código ${err.code} - ${err.title || err.message}`);
+              } else {
+                console.log(`📊 Estado del mensaje ${status.id}: ${status.status}`);
+              }
             }
           }
         }

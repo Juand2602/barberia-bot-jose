@@ -85,7 +85,7 @@ router.delete('/servicios/:id', verificarAdmin, async (req, res) => {
 // ==================== CITAS ====================
 router.get('/citas', verificarAdmin, async (req, res) => {
   try {
-    const { fecha, empleadoId, estado } = req.query;
+    const { fecha, empleadoId, estado, page, pageSize } = req.query;
     const filters: any = {};
     if (fecha) {
       const [year, month, day] = (fecha as string).split('-').map(Number);
@@ -94,8 +94,12 @@ router.get('/citas', verificarAdmin, async (req, res) => {
     }
     if (empleadoId) filters.empleadoId = empleadoId as string;
     if (estado) filters.estado = estado as string;
-    const citas = await citasService.getAll(Object.keys(filters).length > 0 ? filters : undefined);
-    res.json(citas);
+    const resultado = await citasService.getAll(
+      Object.keys(filters).length > 0 ? filters : undefined,
+      page ? parseInt(page as string) : undefined,
+      pageSize ? parseInt(pageSize as string) : undefined
+    );
+    res.json(resultado);
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
@@ -140,9 +144,13 @@ router.put('/citas/:id/estado', verificarAdmin, async (req, res) => {
 // ==================== CLIENTES ====================
 router.get('/clientes', verificarAdmin, async (req, res) => {
   try {
-    const { search } = req.query;
-    const clientes = await clientesService.getAll(search as string | undefined);
-    res.json(clientes);
+    const { search, page, pageSize } = req.query;
+    const resultado = await clientesService.getAll(
+      search as string | undefined,
+      page ? parseInt(page as string) : undefined,
+      pageSize ? parseInt(pageSize as string) : undefined
+    );
+    res.json(resultado);
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 

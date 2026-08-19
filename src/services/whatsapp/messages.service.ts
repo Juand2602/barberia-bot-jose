@@ -12,6 +12,12 @@ export interface ListSection {
 }
 
 export class WhatsAppMessagesService {
+  // Espacio mínimo entre mensajes consecutivos a un mismo destinatario, para reducir el riesgo
+  // de chocar con el rate limit de WhatsApp por par negocio-cliente (código 131056). Si esto
+  // sigue apareciendo en los logs, subir este valor.
+  private static readonly INTERVALO_MINIMO_MS = 400;
+  private ultimoEnvioPorDestinatario = new Map<string, number>();
+
   // Los BSUID (identificador de WhatsApp para usuarios con "username") tienen forma "US.1234...",
   // a diferencia de un número de teléfono que es solo dígitos. Para enviarles un mensaje, la API
   // requiere `recipient` en vez de `to`.
@@ -19,7 +25,23 @@ export class WhatsAppMessagesService {
     return /^[A-Z]{2}\./.test(telefono) ? { recipient: telefono } : { to: telefono };
   }
 
+  private async esperarEspacioMinimo(destinatario: string) {
+    const ultimo = this.ultimoEnvioPorDestinatario.get(destinatario);
+    if (ultimo !== undefined) {
+      const transcurrido = Date.now() - ultimo;
+      if (transcurrido < WhatsAppMessagesService.INTERVALO_MINIMO_MS) {
+        await new Promise(resolve => setTimeout(resolve, WhatsAppMessagesService.INTERVALO_MINIMO_MS - transcurrido));
+      }
+    }
+    this.ultimoEnvioPorDestinatario.set(destinatario, Date.now());
+    // Evitar que el mapa crezca sin límite en un proceso de larga duración
+    if (this.ultimoEnvioPorDestinatario.size > 1000) this.ultimoEnvioPorDestinatario.clear();
+  }
+
   private async sendRequest(endpoint: string, data: any, retries = 2): Promise<any> {
+    const destinatario = data.to || data.recipient;
+    if (destinatario) await this.esperarEspacioMinimo(destinatario);
+
     try {
       const url = `${whatsappConfig.apiUrl}/${whatsappConfig.phoneId}/${endpoint}`;
       const response: AxiosResponse = await axios.post(url, data, {
@@ -31,7 +53,12 @@ export class WhatsAppMessagesService {
       });
       return response.data;
     } catch (error: any) {
-      console.error('Error enviando mensaje WhatsApp:', error.response?.data || error.message);
+      const codigoError = error.response?.data?.error?.code;
+      if (codigoError === 131056 || codigoError === 130429) {
+        console.warn(`⏱️ Rate limit de WhatsApp al enviar a ${destinatario}: código ${codigoError} - ${error.response?.data?.error?.message}. Si se repite seguido, subir INTERVALO_MINIMO_MS en messages.service.ts.`);
+      } else {
+        console.error('Error enviando mensaje WhatsApp:', error.response?.data || error.message);
+      }
       if ((error.code === 'ECONNABORTED' || error.response?.status >= 500) && retries > 0) {
         return this.sendRequest(endpoint, data, retries - 1);
       }
