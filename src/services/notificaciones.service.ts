@@ -10,20 +10,7 @@ export class NotificacionesService {
     });
     if (!cita) return;
 
-    const mensaje = `🆕 *NUEVA CITA AGENDADA*
-
-📋 *Radicado:* ${cita.radicado}
-👤 *Cliente:* ${cita.cliente.nombre}
-📱 *Teléfono:* ${cita.cliente.telefono}
-✂️ *Servicio:* ${cita.servicioNombre}
-👨‍🦲 *Barbero:* ${cita.empleado.nombre}
-📅 *Fecha:* ${formatearFecha(cita.fechaHora)}
-⏰ *Hora:* ${formatearHora(cita.fechaHora.toTimeString().substring(0, 5))}
-🌐 *Origen:* ${cita.origen === 'WHATSAPP' ? 'WhatsApp Bot' : 'Manual'}
-
-_Notificación automática del sistema_ 💈`;
-
-    // Notificar al empleado (usando plantilla para evitar restricción de 24h)
+    // Notificar al empleado/dueño (usando plantilla oficial aprobada para evitar restricción de 24h)
     if (cita.empleado.telefono) {
       try {
         await whatsappMessagesService.enviarPlantilla(
@@ -43,23 +30,7 @@ _Notificación automática del sistema_ 💈`;
       } catch (e) { console.error('Error notificando empleado:', e); }
     }
 
-    // Notificar al jefe barbero (solo si no es el mismo barbero de la cita)
-    const telefonoJefe = process.env.JEFE_BARBERO_TELEFONO;
-    if (telefonoJefe && telefonoJefe !== cita.empleado.telefono) {
-      try {
-        await whatsappMessagesService.enviarMensaje(telefonoJefe, `👔 *Notificación Jefe Barbero*\n\n${mensaje}`);
-      } catch (e) { console.error('Error notificando jefe:', e); }
-    }
-
-    // Notificar a la administradora
-    const telefonoAdmin = process.env.ADMINISTRADORA_TELEFONO;
-    if (telefonoAdmin) {
-      try {
-        await whatsappMessagesService.enviarMensaje(telefonoAdmin, `👩‍💼 *Notificación Administradora*\n\n${mensaje}`);
-      } catch (e) { console.error('Error notificando administradora:', e); }
-    }
-
-    console.log(`✅ Notificaciones enviadas para cita ${cita.radicado}`);
+    console.log(`✅ Notificación oficial enviada al barbero para cita ${cita.radicado}`);
   }
 
   async notificarCitaCancelada(citaId: string) {
@@ -68,18 +39,6 @@ _Notificación automática del sistema_ 💈`;
       include: { cliente: true, empleado: true },
     });
     if (!cita) return;
-
-    const mensaje = `❌ *CITA CANCELADA*
-
-📋 *Radicado:* ${cita.radicado}
-👤 *Cliente:* ${cita.cliente.nombre}
-✂️ *Servicio:* ${cita.servicioNombre}
-👨‍🦲 *Barbero:* ${cita.empleado.nombre}
-📅 *Fecha:* ${formatearFecha(cita.fechaHora)}
-⏰ *Hora:* ${formatearHora(cita.fechaHora.toTimeString().substring(0, 5))}
-${cita.motivoCancelacion ? `📝 *Motivo:* ${cita.motivoCancelacion}` : ''}
-
-_Notificación automática del sistema_ 💈`;
 
     if (cita.empleado.telefono) {
       try {
@@ -99,13 +58,91 @@ _Notificación automática del sistema_ 💈`;
         );
       } catch (e) { console.error('Error notificando empleado cancelación:', e); }
     }
-    const telefonoJefe = process.env.JEFE_BARBERO_TELEFONO;
-    if (telefonoJefe && telefonoJefe !== cita.empleado.telefono) {
-      try { await whatsappMessagesService.enviarMensaje(telefonoJefe, mensaje); } catch (e) {}
+
+    console.log(`✅ Notificación oficial de cancelación enviada para cita ${cita.radicado}`);
+  }
+
+  /**
+   * Envía recordatorio individual de cita a un cliente usando la plantilla oficial de Meta
+   */
+  async notificarRecordatorioCliente(citaId: string) {
+    const cita = await prisma.cita.findUnique({
+      where: { id: citaId },
+      include: { cliente: true, empleado: true },
+    });
+    if (!cita) return;
+
+    const telefono = cita.cliente.telefono;
+    if (!telefono || telefono.startsWith('proxy_')) {
+      await this.marcarRecordatorioEnNotas(cita.id, cita.notas, '[RECORDATORIO_OMITIDO_PROXY]');
+      return;
     }
-    const telefonoAdmin = process.env.ADMINISTRADORA_TELEFONO;
-    if (telefonoAdmin) {
-      try { await whatsappMessagesService.enviarMensaje(telefonoAdmin, mensaje); } catch (e) {}
+
+    try {
+      await whatsappMessagesService.enviarPlantilla(
+        telefono,
+        'recordatorio_cita_cliente',
+        'es',
+        [
+          cita.cliente.nombre,
+          cita.empleado.nombre,
+          formatearFecha(cita.fechaHora),
+          formatearHora(cita.fechaHora.toTimeString().substring(0, 5)),
+          cita.servicioNombre,
+          cita.radicado,
+        ]
+      );
+      await this.marcarRecordatorioEnNotas(cita.id, cita.notas, '[RECORDATORIO_ENVIADO]');
+      console.log(`⏰ Recordatorio enviado a ${cita.cliente.nombre} (${telefono}) para cita ${cita.radicado}`);
+    } catch (e) {
+      console.error(`❌ Error enviando recordatorio para cita ${cita.radicado}:`, e);
+    }
+  }
+
+  /**
+   * Busca citas confirmadas en las próximas 2 horas que no hayan recibido recordatorio
+   * y envía la plantilla oficial de WhatsApp de forma automática
+   */
+  async enviarRecordatoriosProximos() {
+    const ahora = new Date();
+    // Ventana de anticipación: citas en las próximas 2 horas (120 minutos)
+    const limiteSuperior = new Date(ahora.getTime() + 2 * 60 * 60 * 1000);
+
+    const citas = await prisma.cita.findMany({
+      where: {
+        estado: 'CONFIRMADA',
+        fechaHora: {
+          gte: ahora,
+          lte: limiteSuperior,
+        },
+        OR: [
+          { notas: null },
+          { NOT: { notas: { contains: '[RECORDATORIO_ENVIADO]' } } },
+        ],
+      },
+      include: { cliente: true, empleado: true },
+      orderBy: { fechaHora: 'asc' },
+    });
+
+    if (citas.length === 0) return;
+
+    for (const cita of citas) {
+      if (cita.notas && (cita.notas.includes('[RECORDATORIO_ENVIADO]') || cita.notas.includes('[RECORDATORIO_OMITIDO_PROXY]'))) {
+        continue;
+      }
+      await this.notificarRecordatorioCliente(cita.id);
+    }
+  }
+
+  private async marcarRecordatorioEnNotas(citaId: string, notasActuales: string | null, marca: string) {
+    const notasLimpias = notasActuales ? `${notasActuales} ${marca}`.trim() : marca;
+    try {
+      await prisma.cita.update({
+        where: { id: citaId },
+        data: { notas: notasLimpias },
+      });
+    } catch (e) {
+      console.error(`Error actualizando notas de recordatorio para cita ${citaId}:`, e);
     }
   }
 }

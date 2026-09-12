@@ -11,6 +11,7 @@ dotenv.config();
 import webhookRoutes from './routes/webhook.routes';
 import adminRoutes from './routes/admin.routes';
 import { limpiarConversacionesInactivas } from './services/whatsapp/bot.service';
+import { notificacionesService } from './services/notificaciones.service';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -52,11 +53,21 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
 });
 
 // ==================== CRON JOBS ====================
+// Limpieza de conversaciones inactivas (cada 5 minutos)
 cron.schedule('*/5 * * * *', async () => {
   try {
     await limpiarConversacionesInactivas();
   } catch (error) {
     console.error('❌ Error en cron de limpieza:', error);
+  }
+});
+
+// Recordatorios automáticos de citas a clientes 2 horas antes (cada 10 minutos)
+cron.schedule('*/10 * * * *', async () => {
+  try {
+    await notificacionesService.enviarRecordatoriosProximos();
+  } catch (error) {
+    console.error('❌ Error en cron de recordatorios:', error);
   }
 });
 
