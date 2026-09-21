@@ -78,6 +78,16 @@ export class NotificacionesService {
       return;
     }
 
+    // Si la cita fue creada con menos de 2 horas de anticipación a su horario,
+    // el cliente ya tiene fresca la confirmación que acaba de recibir; no enviar recordatorio redundante.
+    const diferenciaCreacionMs = cita.fechaHora.getTime() - cita.createdAt.getTime();
+    const dosHorasMs = 2 * 60 * 60 * 1000;
+    if (diferenciaCreacionMs <= dosHorasMs) {
+      await this.marcarRecordatorioEnNotas(cita.id, cita.notas, '[RECORDATORIO_OMITIDO_RECIENTE]');
+      console.log(`ℹ️ Cita ${cita.radicado} creada a última hora (hace poco). Se omite recordatorio redundante.`);
+      return;
+    }
+
     try {
       await whatsappMessagesService.enviarPlantilla(
         telefono,
