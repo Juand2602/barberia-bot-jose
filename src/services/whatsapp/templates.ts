@@ -1,14 +1,14 @@
 import { barberiaConfig } from '../../config/whatsapp';
 
+export const NOMBRE_PLACEHOLDER_CLIENTE = 'Cliente WhatsApp';
+
 export const MENSAJES = {
-  BIENVENIDA: (nombreBarberia: string = barberiaConfig.nombre) =>
-    `💈 Hola, te saluda *${nombreBarberia}*, es un gusto atenderte 💈
+  BIENVENIDA: (nombreBarberia: string = barberiaConfig.nombre, nombreCliente?: string) =>
+    `💈 Hola${nombreCliente ? ` ${nombreCliente}` : ''}, te saluda *${nombreBarberia}*, es un gusto atenderte 💈
 
 *¿Necesitas información de...?*
 
-Selecciona una opción usando los botones:
-
-Escribe *"cancelar"* en cualquier momento para salir del proceso.`,
+Toca *Ver opciones* para elegir:`,
 
   UBICACION: (direccion: string = barberiaConfig.direccion) =>
     `💈 Estamos ubicados en *${direccion}*`,
@@ -24,19 +24,22 @@ Escribe *"cancelar"* en cualquier momento para salir del proceso.`,
   },
 
   ELEGIR_BARBERO_TEXTO: () =>
-    `💈 ¿Con cual de nuestros profesionales desea su cita?\n\nSelecciona un barbero de la lista o escribe "ninguno" si ninguno te conviene.\n\nEscribe *"cancelar"* en cualquier momento para salir del proceso.`,
+    `💈 ¿Con cual de nuestros profesionales desea su cita?`,
 
   SOLICITAR_NOMBRE_COMPLETO: () =>
-    `💈 ¿Podría indicarme su *nombre y apellido* por favor?\n\nEscribe *"cancelar"* en cualquier momento para salir del proceso.`,
+    `💈 ¿Podría indicarme su *nombre y apellido* por favor?`,
 
   NOMBRE_INVALIDO: () =>
-    `💈 Por favor lea con atención y responda correctamente\n\nIntente de nuevo por favor\n\nEscribe *"cancelar"* en cualquier momento para salir del proceso.`,
+    `💈 Necesito su *nombre y apellido*, por ejemplo: *Juan Pérez*.`,
 
   SOLICITAR_FECHA_TEXTO: () =>
-    `💈 ¿Para cuando desea su cita?\n\nSeleccione una opción usando los botones.\n\nEscribe *"cancelar"* en cualquier momento para salir del proceso.`,
+    `💈 ¿Para cuando desea su cita?`,
 
   SOLICITAR_FECHA_ESPECIFICA: () =>
-    `💈 Por favor indique la *fecha* deseada:\n\nPuede escribir:\n\n📅 Un día de la semana (ej: *"viernes", "sábado"*)\n\n📅 Una fecha específica (ej: *"25/12/2024"*)\n\nEscribe *"cancelar"* en cualquier momento para salir del proceso.`,
+    `💈 Indique la *fecha* deseada (hasta con 7 días de anticipación):\n\n📅 Un día de la semana (ej: *viernes*)\n\n📅 Una fecha (ej: *${ejemploFecha()}*)`,
+
+  FECHA_NO_ENTENDIDA: (texto: string) =>
+    `🧑🏾‍🦲 No entendí la fecha "${texto}".\n\nIntente con un día de la semana (ej: *viernes*) o una fecha (ej: *${ejemploFecha()}*).`,
 
   CONSULTANDO_AGENDA: () => `💈 Un momento por favor, voy a consultar la agenda...`,
 
@@ -47,6 +50,9 @@ Escribe *"cancelar"* en cualquier momento para salir del proceso.`,
     mensaje += `Si no desea ninguno de los turnos disponibles envíeme la palabra *Cancelar*`;
     return mensaje;
   },
+
+  HORARIOS_DISPONIBLES_TEXTO: () =>
+    `💈 Tengo los siguientes turnos disponibles.\n\nSelecciona un horario de la lista.`,
 
   NO_HAY_HORARIOS: () => `💈 Lo siento, no hay turnos disponibles para ese día.`,
 
@@ -71,11 +77,6 @@ Escribe *"cancelar"* en cualquier momento para salir del proceso.`,
 
 ¡Le esperamos! 💈`,
 
-  SOLICITAR_RADICADO: () =>
-    `💈 Para cancelar su cita necesito el código de radicado\n\n¿Tiene con usted el código de su cita?\n\nEscribe *"cancelar"* en cualquier momento para salir del proceso.`,
-
-  SIN_RADICADO_BUSCAR_CITAS: () => `💈 No hay problema, déjeme buscar sus citas activas...`,
-
   MOSTRAR_CITAS_ACTIVAS: (citas: Array<{ numero: number; radicado: string; servicio: string; fecha: string; hora: string }>) => {
     let mensaje = `📋 *Sus citas activas:*\n\n`;
     citas.forEach(c => {
@@ -89,16 +90,13 @@ Escribe *"cancelar"* en cualquier momento para salir del proceso.`,
   },
 
   MOSTRAR_CITAS_ACTIVAS_TEXTO: () =>
-    `📋 *Sus citas activas:*\n\nSelecciona la cita que deseas cancelar de la lista o envía el código de radicado directamente.`,
+    `📋 *Sus citas activas:*\n\nSelecciona la cita que deseas cancelar.`,
 
   SIN_CITAS_ACTIVAS: () =>
     `💈 No encontré citas activas asociadas a su número de teléfono\n\nSi está seguro de que tiene una cita, por favor verifique el código de radicado y envíemelo directamente`,
 
-  SOLICITAR_CODIGO_RADICADO: () =>
-    `💈 Por favor envíeme el código de su cita\n\n💡 También puede enviar solo los *números* (ej: 123456) y lo buscaré\n\nEscribe *"cancelar"* en cualquier momento para salir del proceso.`,
-
   RADICADO_NO_ENCONTRADO: () =>
-    `💈 No encontré ninguna cita con ese código\n\nPor favor verifique e intente nuevamente, o responda *"no"* para ver sus citas activas\n\nEscribe *"cancelar"* en cualquier momento para salir del proceso.`,
+    `💈 No encontré ninguna cita con ese código. Elige una cita de la lista o vuelve al menú.`,
 
   CONFIRMAR_CANCELACION: (datos: { radicado: string; servicio: string; fecha: string; hora: string }) =>
     `⚠️ *¿Está seguro que desea cancelar esta cita?*
@@ -115,13 +113,19 @@ Escribe *"cancelar"* en cualquier momento para salir del proceso.`,
     `💈 Ha sido un placer servirle, espero que mi atención haya sido de su agrado, le deseo un feliz resto de día`,
 
   OPCION_INVALIDA: () =>
-    `💈 Por favor lea con atención y responda correctamente\n\nIntente de nuevo por favor`,
+    `💈 No entendí su respuesta. Por favor use las opciones del mensaje anterior.`,
 
   ERROR_SERVIDOR: () =>
     `💈 Lo siento, hubo un problema técnico. Por favor intente nuevamente en unos momentos.`,
 
   CANCELACION_CONFIRMADA: () =>
     `💈 Proceso cancelado. Si necesita ayuda en el futuro, no dude en contactarnos.`,
+};
+
+// Fecha de ejemplo (dentro de 3 días, DD/MM/AAAA) para los textos de ayuda: nunca queda desactualizada.
+const ejemploFecha = (): string => {
+  const d = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 };
 
 export const formatearPrecio = (precio: number): string =>
@@ -150,7 +154,22 @@ export const generarRadicado = (): string => {
   return `RAD-${codigo}`;
 };
 
+// Palabras de navegación/comandos que nunca son parte de un nombre (sin acentos ni mayúsculas).
+const PALABRAS_NO_NOMBRE = new Set([
+  'menu', 'volver', 'atras', 'cancelar', 'salir', 'exit', 'ninguno',
+  'agendar', 'cita', 'fecha', 'hola', 'gracias', 'hoy', 'manana',
+]);
+
 export const validarNombreCompleto = (nombre: string): boolean => {
-  const palabras = nombre.trim().split(/\s+/);
-  return palabras.length >= 2 && palabras.every(p => p.length >= 2);
+  const texto = nombre.trim();
+
+  // Solo letras (con acentos), espacios, puntos, apóstrofes y guiones: rechaza "12 pm", "25/12", "menu_agendar"
+  if (!/^[\p{L}][\p{L}\s.'’-]*$/u.test(texto)) return false;
+
+  const palabras = texto.split(/\s+/);
+  if (palabras.length < 2 || !palabras.every(p => p.length >= 2)) return false;
+
+  return !palabras.some(p =>
+    PALABRAS_NO_NOMBRE.has(p.toLowerCase().normalize('NFD').replace(/[̀-ͯ.'’-]/g, ''))
+  );
 };

@@ -35,7 +35,6 @@ export type ConversationState =
   | 'ESPERANDO_FECHA'
   | 'ESPERANDO_FECHA_ESPECIFICA'
   | 'ESPERANDO_HORA'
-  | 'ESPERANDO_RADICADO'
   | 'ESPERANDO_SELECCION_CITA_CANCELAR'
   | 'ESPERANDO_CONFIRMACION_CANCELACION'
   | 'ESPERANDO_RESPUESTA_UBICACION'
@@ -62,4 +61,5 @@ export interface ConversationContext {
     hora: string;
   }>;
   flujo?: string;
+  _nombreClienteDb?: string;
 }

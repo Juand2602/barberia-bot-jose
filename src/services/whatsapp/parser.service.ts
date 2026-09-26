@@ -18,7 +18,11 @@ export class MessageParserService {
       const [, dia, mes, año] = match;
       const añoCompleto = año.length === 2 ? 2000 + parseInt(año) : parseInt(año);
       const fecha = new Date(añoCompleto, parseInt(mes) - 1, parseInt(dia));
-      if (!isNaN(fecha.getTime()) && fecha >= hoy) return fecha;
+      // Solo se valida que la fecha exista (31/02 no: JS la volvería 03/03). Si es pasada se
+      // devuelve igual: el bot responde "no puedo agendar en el pasado", no "no entendí la fecha".
+      if (!isNaN(fecha.getTime()) && fecha.getDate() === parseInt(dia) && fecha.getMonth() === parseInt(mes) - 1) {
+        return fecha;
+      }
     }
 
     const diasSemana: Record<string, number> = {
@@ -61,7 +65,16 @@ export class MessageParserService {
 
   esComandoCancelacion(texto: string): boolean {
     const n = this.normalizarRespuesta(texto);
-    return ['cancelar', 'salir', 'exit', 'atras', 'volver'].includes(n);
+    return ['cancelar', 'salir', 'exit'].includes(n);
+  }
+
+  esComandoMenu(texto: string): boolean {
+    return this.normalizarRespuesta(texto) === 'menu';
+  }
+
+  esComandoVolver(texto: string): boolean {
+    const n = this.normalizarRespuesta(texto);
+    return ['volver', 'atras'].includes(n);
   }
 
   extraerRadicado(texto: string): string | null {
