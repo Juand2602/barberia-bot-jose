@@ -207,14 +207,20 @@ export class WhatsAppBotService {
   }
 
   private async manejarRespuestaNoHayHorarios(telefono: string, mensaje: string, contexto: ConversationContext, conversacionId: string) {
-    if (mensaje === 'si_mas' || messageParser.esAfirmativo(mensaje)) {
-      await whatsappMessagesService.enviarMensajeConBotones(telefono, MENSAJES.SOLICITAR_FECHA_TEXTO(), [
-        { id: 'fecha_hoy', title: '📅 Hoy' }, { id: 'fecha_manana', title: '📅 Mañana' }, { id: 'fecha_otro_dia', title: '📅 Otro día' },
-      ]);
-      await this.actualizarConversacion(conversacionId, 'ESPERANDO_FECHA', contexto);
-    } else {
+    if (mensaje === 'menu_principal') {
+      await this.enviarMenuPrincipal(telefono);
+      await this.actualizarConversacion(conversacionId, 'INICIAL', {});
+      return;
+    }
+
+    // si_mas / no_mas: botones anteriores, se mantienen para conversaciones ya abiertas
+    if (mensaje === 'otra_fecha' || mensaje === 'si_mas' || messageParser.esAfirmativo(mensaje)) {
+      await this.avanzarAFecha(telefono, contexto, conversacionId);
+    } else if (mensaje === 'menu_salir' || mensaje === 'no_mas' || messageParser.esNegativo(mensaje)) {
       await whatsappMessagesService.enviarMensaje(telefono, MENSAJES.DESPEDIDA());
       await this.finalizarConversacion(conversacionId);
+    } else {
+      await this.enviarOpcionInvalida(telefono, mensaje);
     }
   }
 
@@ -322,7 +328,6 @@ export class WhatsAppBotService {
     }
 
     contexto.fecha = fechaLocal.toISOString();
-    await whatsappMessagesService.enviarMensaje(telefono, MENSAJES.CONSULTANDO_AGENDA());
 
     let horarios = await citasService.calcularHorariosDisponibles(contexto.empleadoId!, fechaLocal, 50);
 
@@ -336,25 +341,32 @@ export class WhatsAppBotService {
     if (horarios.length > 0) {
       await this.enviarHorariosDisponibles(telefono, horarios, contexto, conversacionId);
     } else {
-      await whatsappMessagesService.enviarMensaje(telefono, MENSAJES.NO_HAY_HORARIOS());
-      await whatsappMessagesService.enviarMensajeConBotones(telefono, '¿Desea intentar con otra fecha?', [
-        { id: 'si_mas', title: '✅ Sí' }, { id: 'no_mas', title: '❌ No' },
-      ]);
-      await this.actualizarConversacion(conversacionId, 'ESPERANDO_RESPUESTA_NO_HAY_HORARIOS', contexto);
+      await this.enviarSinHorarios(telefono, contexto, conversacionId);
     }
   }
 
+  private async enviarSinHorarios(telefono: string, contexto: ConversationContext, conversacionId: string, aviso?: string) {
+    await whatsappMessagesService.enviarMensajeConBotones(telefono, `${aviso ? `${aviso}\n\n` : ''}${MENSAJES.NO_HAY_HORARIOS()}`, [
+      { id: 'otra_fecha', title: '📅 Otra fecha' },
+      { id: 'menu_principal', title: '📋 Menú principal' },
+      { id: 'menu_salir', title: '👋 Salir' },
+    ]);
+    await this.actualizarConversacion(conversacionId, 'ESPERANDO_RESPUESTA_NO_HAY_HORARIOS', contexto);
+  }
+
   // Máx. 10 filas por lista de Meta: 9 turnos + la fila "Cambiar fecha". Con más turnos, un solo
-  // mensaje con la lista numerada en el cuerpo y el botón de cambiar fecha (1 mensaje, no 2).
-  private async enviarHorariosDisponibles(telefono: string, horarios: string[], contexto: ConversationContext, conversacionId: string) {
+  // mensaje con la lista numerada en el cuerpo y el botón de cambiar fecha (1 mensaje, no 2). El
+  // aviso (p. ej. "horario ya ocupado") viaja en el mismo mensaje que los horarios, no aparte.
+  private async enviarHorariosDisponibles(telefono: string, horarios: string[], contexto: ConversationContext, conversacionId: string, aviso?: string) {
     const horariosFormateados = horarios.map((h, i) => ({ numero: i + 1, hora: formatearHora(h) }));
     contexto.horariosDisponibles = horariosFormateados;
     contexto.horariosRaw = horarios;
+    const prefijo = aviso ? `${aviso}\n\n` : '';
 
     if (horarios.length <= 9) {
       await whatsappMessagesService.enviarMensajeConLista(
         telefono,
-        MENSAJES.HORARIOS_DISPONIBLES_TEXTO(),
+        `${prefijo}${MENSAJES.HORARIOS_DISPONIBLES_TEXTO()}`,
         'Ver horarios',
         [{
           title: 'Turnos disponibles',
@@ -365,7 +377,7 @@ export class WhatsAppBotService {
         }]
       );
     } else {
-      await whatsappMessagesService.enviarMensajeConBotones(telefono, MENSAJES.HORARIOS_DISPONIBLES(horariosFormateados), [
+      await whatsappMessagesService.enviarMensajeConBotones(telefono, `${prefijo}${MENSAJES.HORARIOS_DISPONIBLES(horariosFormateados)}`, [
         { id: 'cambiar_fecha', title: '📅 Cambiar fecha' },
       ]);
     }
@@ -433,16 +445,12 @@ export class WhatsAppBotService {
         await this.actualizarConversacion(conversacionId, 'ESPERANDO_RESPUESTA_DESPUES_CITA', contexto);
       } catch (createError: any) {
         if (createError.message.includes('ya no está disponible') || createError.message.includes('ya está agendada') || createError.message.includes('no está disponible')) {
-          await whatsappMessagesService.enviarMensaje(telefono, MENSAJES.HORARIO_YA_OCUPADO());
           const horariosNuevos = await citasService.calcularHorariosDisponibles(contexto.empleadoId!, fechaBase, servicio.duracionMinutos);
+          // El aviso viaja dentro del mismo mensaje que los horarios (1 envío, no 2).
           if (horariosNuevos.length > 0) {
-            await this.enviarHorariosDisponibles(telefono, horariosNuevos, contexto, conversacionId);
+            await this.enviarHorariosDisponibles(telefono, horariosNuevos, contexto, conversacionId, MENSAJES.HORARIO_YA_OCUPADO());
           } else {
-            await whatsappMessagesService.enviarMensaje(telefono, MENSAJES.NO_HAY_HORARIOS());
-            await whatsappMessagesService.enviarMensajeConBotones(telefono, '¿Desea intentar con otra fecha?', [
-              { id: 'si_mas', title: '✅ Sí' }, { id: 'no_mas', title: '❌ No' },
-            ]);
-            await this.actualizarConversacion(conversacionId, 'ESPERANDO_RESPUESTA_NO_HAY_HORARIOS', contexto);
+            await this.enviarSinHorarios(telefono, contexto, conversacionId, MENSAJES.HORARIO_YA_OCUPADO());
           }
         } else { throw createError; }
       }

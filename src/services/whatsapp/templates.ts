@@ -57,7 +57,7 @@ Toca *Ver opciones* para elegir:`,
   NO_HAY_HORARIOS: () => `💈 Lo siento, no hay turnos disponibles para ese día.`,
 
   HORARIO_YA_OCUPADO: () =>
-    `💈 Lo siento, ese horario ya ha sido ocupado por otro cliente.\n\nPor favor seleccione otro horario de la lista disponible.`,
+    `💈 Lo siento, ese horario acaba de ser ocupado por otro cliente.`,
 
   CITA_CONFIRMADA: (datos: { radicado: string; servicio: string; barbero: string; fecha: string; hora: string }) =>
     `✅ *Su cita ha sido agendada exitosamente*
